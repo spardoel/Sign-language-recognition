@@ -6,4 +6,7 @@ My goals for this project are to utilize various machine learning methods for im
 
 ## Dataset
 To start I am using the American Sign Language (ASL) Dataset from kaggle. (https://www.kaggle.com/datasets/prathumarikeri/american-sign-language-09az?resource=download)
-The dataset has several thousand images of each letter of the alphabet. 
+The dataset has several thousand images of each letter of the alphabet. The dataset contains about 140 thousand images. Plenty for my purposes.
+
+
+Not finished... 
