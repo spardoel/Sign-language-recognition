@@ -10,3 +10,9 @@ The dataset has several thousand images of each letter of the alphabet. The data
 
 
 Not finished... 
+
+
+## A few things to note
+Throughout the blog you may notice that I use the terms Class and Category interchangeably when referring to the different labels in the dataset. 
+Personally, I prefer the term Class, but I realize it may be confusing in some contexts and variables cannot be named Class. Hence, I will sometimes use Category.  
+
