@@ -1,1 +1,148 @@
 # Developing a sign language interpreter using machine learning Part 2 - Building a basic CNN model
+
+In this post I will go through my first attempts at building a convolutional nerural network for the classification of sign language alphabet images. 
+Full disclosure, I referenced this link (https://www.kaggle.com/code/gpiosenka/asl-f1-score-98) and utilized some of the same methodology.
+That said, let's jump in. 
+
+## Assessing the dataset
+The whole dataset has somewhere around 140 thousand images. For these first tests, I will use a subset of the dataset to speed up training and development. 
+But I am getting ahead of myself... First, it is good to know how many classes (categories) are in the dataset and how many samples (images) are in each. 
+```
+DATASET_PATH = "../../American/"
+
+# Print the number of images in each catagory in the dataset
+for label in os.listdir(DATASET_PATH):
+    print(str(len(os.listdir(DATASET_PATH + label))) + " " + label + " images")
+    
+num_classes = len(os.listdir(DATASET_PATH))
+print(f"There are {num_classes} classes")
+```
+This code provides the relative path to the dataset folder (called 'American' because it is a dataset of American sign language). Then, a for loop prints the name of each class folder and the number files it contains. Here is the output. 
+```
+3070 0 images
+1570 1 images
+1570 2 images
+1570 3 images
+3070 4 images
+3070 5 images
+3070 6 images
+3070 7 images
+3070 8 images
+3070 9 images
+6070 a images
+6070 b images
+6070 c images
+6070 d images
+3070 e images
+6070 f images
+6070 g images
+6070 h images
+6807 i images
+6124 j images
+5488 k images
+6494 l images
+2924 m images
+3968 n images
+7294 o images
+2566 p images
+3590 q images
+3538 r images
+2374 s images
+3076 t images
+3244 u images
+3926 v images
+2086 w images
+2330 x images
+2454 y images
+2218 z images
+There are 36 classes
+```
+As you can see there are a lot of classes (categories); 36 to be exact. Each category has a few thousand images, but the number of images is not equal between classes. This can lead to issues. 
+Giving a model more samples of a certain class can cause bias since the model can 'have more practice' on some classes. This issue is known as class imbalance.
+More on that in a minute. 
+
+### Load the image paths and labels
+
+To be able to manipulate the images and to easily create sub-samples, the image paths and labels are loaded into a dataframe. During this process, 100 images from each class are kept. This value will be increased in the future, but to keep things fast, the classes are kept small.
+Here is the code. 
+```
+# Create pandas dataframes containing the location and class of each file
+image_paths = []
+image_labels = []
+NUM_IMAGES_PER_CLASS = 100  # The number of images to use from each class
+
+# Check each folder in the dataset. Each one corresponds to a class (category)
+for category in os.listdir(DATASET_PATH):
+    # for each category folder create folder path
+    category_path = os.path.join(DATASET_PATH, category)
+
+    # randomly select (without replacement) a subset of the images in the current class folder
+    sample_images = sample(os.listdir(category_path), NUM_IMAGES_PER_CLASS)
+
+    # for each image in the category folder
+    for image in sample_images:
+        # Add the image name to the path and append the image path and label to their respective lists
+        image_paths.append(os.path.join(category_path, image))
+        image_labels.append(category)
+
+
+# combine the lists into a pandas dataframe. First convert to pandas Series and then concatenate.
+df = pd.concat(
+    [
+        pd.Series(image_paths, name="image_paths"),
+        pd.Series(image_labels, name="image_labels"),
+    ],
+    axis=1,
+)
+
+
+# count the times each label (category) appears
+print(df["image_labels"].value_counts())
+
+```
+This code first declares 2 empty lists that will be used later, and also declares (as a constant) the number of samples to keep from each class. 
+Then, the code gets the list of folders in the dataset's main folder and loop through them. For each class, the name of the class folder is joined with the dataset path.
+Next the code gets the list of images in the class folder and randomly selects a subset. 
+Looping through this subset, the code then creates the path for each image and appends the image path and image label to the image_paths, and image_labels lists.
+When this code was run, here was the output.
+```
+0    100
+1    100
+k    100
+l    100
+m    100
+n    100
+o    100
+p    100
+q    100
+r    100
+s    100
+t    100
+u    100
+v    100
+w    100
+x    100
+y    100
+j    100
+i    100
+h    100
+8    100
+2    100
+3    100
+4    100
+5    100
+6    100
+7    100
+9    100
+g    100
+a    100
+b    100
+c    100
+d    100
+e    100
+f    100
+z    100
+Name: image_labels, dtype: int64
+100
+```
+Great. It looks like each class has exactly 100 images. Since we declared the number of samples to keep as a constant, we can easily come back and change this value later to select a larger subset of data. 
