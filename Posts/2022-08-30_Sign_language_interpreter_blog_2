@@ -201,7 +201,9 @@ To train the model we will need to load the actual images for the model to use, 
 Tensorflow Image Generators are an important part of this project. The image generators load and prepare images that are then passed to the model during training. 
 A variety of pre-processing steps can be added to generators making them simple and powerful tools for image classification models. 
 
-First, I declare the image size. The size is defined by the image width and height in pixels and the number of channels per pixel. Since the images are in colour, each image has a red, green and blue value (rgb). Hence, colour images have 3 channels.
+First, I declare the image size. The size is defined by the image width and height in pixels and the number of channels per pixel. The images in the dataset are colour, meaning they have 3 channels (rgb). 
+However, in this case, the colour of the image doesn't matter. The model will be used to examine the position of the fingers and hands, the colours of the hand is irrelevant. For this reason the images are converted to grayscale in the ImageGenerators. This reduces the number of model parameters which can help speed up training and reduce overfitting. 
+
 The number of images per batch is also defined. During training the model will go through all of the data in the training set multiple times. An epoch refers to the model seeing all of the training data once. 
 So if there are 2160 images in our training set, the model will see all 2160 images each epoch. Now, loading that many images into memory at once may not be possible, so batches of images can be used. 
 Batching presents the images to the model in smaller groups. After seeing each batch the model weights are updated before starting the next batch. For this reason, the batch size can have an effect on model generalization. 
@@ -210,7 +212,7 @@ The ideal batch size is a complicated topic. The size of the batch can affect co
 ```
 HEIGHT = 50  # height of each image in pixels
 WIDTH = 50  # width of each image in pixels
-CHANNELS = 3  # number of channels per pixel, 3 for rgb (because pictures are in colour)
+CHANNELS = 1  # number of channels per pixel. Normally 3 for rgb, but 1 here because the images are converted to grayscale
 BATCH_SIZE = 80  # number of images per batch
 ```
 With the image size and batch size constants defined, the imagegenerators were created. After being initantiated, the specific parameters of the generators were set. Check out the following code.
@@ -227,8 +229,8 @@ train_generator = gen_train.flow_from_dataframe(
     y_col="image_labels",
     target_size=(HEIGHT, WIDTH),
     class_mode="categorical",
-    color_mode="rgb",
-    shuffle=False,
+    color_mode="grayscale",
+    shuffle=True,
     batch_size=BATCH_SIZE,
 )
 test_generator = gen_test.flow_from_dataframe(
@@ -237,7 +239,7 @@ test_generator = gen_test.flow_from_dataframe(
     y_col="image_labels",
     target_size=(HEIGHT, WIDTH),
     class_mode="categorical",
-    color_mode="rgb",
+    color_mode="grayscale",
     shuffle=False,
     batch_size=BATCH_SIZE,
 )
@@ -247,10 +249,220 @@ validation_generator = gen_val.flow_from_dataframe(
     y_col="image_labels",
     target_size=(HEIGHT, WIDTH),
     class_mode="categorical",
-    color_mode="rgb",
-    shuffle=False,
+    color_mode="grayscale",
+    shuffle=True,
     batch_size=BATCH_SIZE,
 )
 ```
-As you can see, several parameters are set for each image generator. First, the dataframe is passed along with the column names corresponding to the x and y data. By convention, the x data is the data being classified (in this case images) and the y data is the category label.
-Next, the image size is set. The classification mode is set to 'categorical' the input data (in our case this is a list of image locations and labels), the 
+As you can see, several parameters are set for each image generator. First, the dataframe is passed along with the column names corresponding to the x and y data. By convention, the x data is the data being classified (images in this case) and the y data is the category label.
+Next, the image size is set. The classification mode is set to 'categorical', the color mode to rgb (because the images are in colour), the shuffle parameter dictates whether the order of the samples is mixed. Finally, the batch size defined earlier is passed in as well. 
+After creating the image generators, now it is time to define the neural network architecture. 
+
+## CNN architecture 
+To start the CNN model is pretty basic, it has 2 convolutional layers followed by 2 fully connected layers and a softmax output layer. For all layers, a the Relu activation function is used. Batch normalization and dropout layers are also included to help prevent overfitting.
+Each convolutional layer uses a Number of filters, filter size of 3 by 3 pixels and padds the output to match the size of the input images. The pooling layers use a 2 by 2 and take the maximum value. 
+After the convolutional layers, there are 2 fully connected layers. Finally there is a fully connected layer with 35 nodes (matching the number of classes) and a softmax activation function.
+Here is the model architecture.
+```
+# Initialize and define the CNN
+model = Sequential()
+
+# 1 - Convolution layer
+model.add(Conv2D(64, (3, 3), padding="same", input_shape=(HEIGHT, WIDTH, CHANNELS)))
+model.add(BatchNormalization())
+model.add(Activation("relu"))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
+
+# 2nd Convolution layer
+model.add(Conv2D(128, (3, 3), padding="same"))
+model.add(BatchNormalization())
+model.add(Activation("relu"))
+model.add(MaxPooling2D(pool_size=(2, 2)))
+model.add(Dropout(0.25))
+
+# Flattening
+model.add(Flatten())
+
+# 1st Fully connected layer
+model.add(Dense(256))
+model.add(BatchNormalization())
+model.add(Activation("relu"))
+model.add(Dropout(0.25))
+
+# 2nd Fully connected layer
+model.add(Dense(256))
+model.add(BatchNormalization())
+model.add(Activation("relu"))
+model.add(Dropout(0.25))
+
+# Final dense layer with softmax activation
+model.add(Dense(num_classes, activation="softmax"))
+```
+Next, the a few more model parameters are set and the model is compiled. 
+```
+opt = Adam(learning_rate=0.0005)
+model.compile(optimizer=opt, loss="categorical_crossentropy", metrics=["accuracy"])
+
+# print the model architecture summary
+model.summary()
+```
+The Adam optimizer is used with an initial learning rate of 0.0005, categorical cross entropy is used as the loss function and the metric used for model evaluation is accuracy.
+
+## Define some callbacks
+With the model created and compiled, I next defined callbacks to be used during training process. 
+### Learning rate schedule
+The learning rate affects how aggresively the model parameters are adjusted during back propagation. Larger learning rates can help the model converge quickly but may not produce good performance since the convergence isn't necessarily optimal. 
+Smaller learning rates converge more slowly but can make smaller adjustment to really fine tune the convergence. With this in mind, the learning rate will get progressively smaller as the model trains. The idea here is that the larger learning rate at the beginning will get us in the ball park, and from there the smaller learning rate will zero in on the optimal solution.
+To do this, the Keras Reduce on Plateau callback is used which will reduce the learning rate when the validation loss stops decreasing. Here is the code.
+```
+# define a learning rate schedule to reduce learning rate by 10 for every 2 epochs without an improvement in validation loss
+reduce_lr = ReduceLROnPlateau(monitor="val_loss", factor=0.1, patience=2, min_lr=0.00001, mode="auto")
+```
+
+### Periodically save model weights
+To keep track of the model progress (and to still have a salvageable model if something goes wrong), the model weights are saved after every epoch using the Model Checkpoint callback.
+```
+# saves the model weights after every epoch
+checkpoint = ModelCheckpoint(
+    "model_weights.h5",
+    monitor="val_accuracy",
+    save_weights_only=True,
+    mode="max",
+    verbose=1,
+)
+
+```
+### Early stopping
+When training a model, the number of epochs to train is set ahead of time. This means, the number of times the model runs through the dataset needs to be chosen in advance. 
+This can be somewhat of a guess since it is hard to know how many epochs a model will need to train before the performance plateaus. To solve this issue, early stopping criteria can be set. 
+The criteria will be checked after each epoch and will stop training the model if certain conditions are reached. Here is the early stopping callback.
+```
+# stops the training early if the validation loss has not improved (decreased) in the last 3 epochs
+early_stop = EarlyStopping(monitor="val_loss", mode="min", verbose=1, patience=3)
+```
+The callback monitors the validation loss, and if it has not decreased in last 3 epochs, then the training will stop. 
+
+## Model training
+Close to actually running the model now. 
+You know, since they say that writting is mostly editing, and coding is mostly debugging. I think it could be said that training machine learning models is mostly setup. Just saying. 
+Anyway, on to the training step. To train the model,  model.fit() is used. The training data image generator is passed in along with the preset number of epochs, the validation data generator and the callback functions. 
+The number of steps per epoch and the number of validation steps are calculated based on the total number of samples and the batch size.
+```
+epochs = 10  # number of times the model will go through the training data
+history = model.fit(
+    x=train_generator,
+    steps_per_epoch=train_generator.n // train_generator.batch_size,
+    epochs=epochs,
+    validation_data=validation_generator,
+    validation_steps=validation_generator.n // validation_generator.batch_size,
+    callbacks=[checkpoint, reduce_lr, early_stop],
+)
+
+```
+When the code is run, here is the output.
+```
+
+Model: "sequential"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #
+=================================================================
+ conv2d (Conv2D)             (None, 50, 50, 64)        640
+
+ batch_normalization (BatchN  (None, 50, 50, 64)       256
+ ormalization)
+
+ activation (Activation)     (None, 50, 50, 64)        0
+
+ max_pooling2d (MaxPooling2D  (None, 25, 25, 64)       0
+ )
+
+ dropout (Dropout)           (None, 25, 25, 64)        0
+
+ conv2d_1 (Conv2D)           (None, 25, 25, 128)       73856
+
+ batch_normalization_1 (Batc  (None, 25, 25, 128)      512
+ hNormalization)
+
+ activation_1 (Activation)   (None, 25, 25, 128)       0
+
+ max_pooling2d_1 (MaxPooling  (None, 12, 12, 128)      0
+ 2D)
+
+ dropout_1 (Dropout)         (None, 12, 12, 128)       0
+
+ flatten (Flatten)           (None, 18432)             0
+
+ dense (Dense)               (None, 256)               4718848
+
+ batch_normalization_2 (Batc  (None, 256)              1024
+ hNormalization)
+
+ activation_2 (Activation)   (None, 256)               0
+
+ dropout_2 (Dropout)         (None, 256)               0
+
+ dense_1 (Dense)             (None, 256)               65792
+
+ batch_normalization_3 (Batc  (None, 256)              1024
+ hNormalization)
+
+ activation_3 (Activation)   (None, 256)               0
+
+ dropout_3 (Dropout)         (None, 256)               0
+
+ dense_2 (Dense)             (None, 36)                9252
+
+=================================================================
+Total params: 4,871,204
+Trainable params: 4,869,796
+Non-trainable params: 1,408
+_________________________________________________________________
+Epoch 1/10
+2022-09-01 18:56:58.736576: I tensorflow/stream_executor/cuda/cuda_dnn.cc:384] Loaded cuDNN version 8401
+27/27 [==============================] - ETA: 0s - loss: 2.7904 - accuracy: 0.2718  
+Epoch 1: saving model to model_weights.h5
+27/27 [==============================] - 42s 1s/step - loss: 2.7904 - accuracy: 0.2718 - val_loss: 6.8455 - val_accuracy: 0.0500 - lr: 5.0000e-04
+Epoch 2/10
+27/27 [==============================] - ETA: 0s - loss: 1.7040 - accuracy: 0.5486
+Epoch 2: saving model to model_weights.h5
+27/27 [==============================] - 2s 79ms/step - loss: 1.7040 - accuracy: 0.5486 - val_loss: 2.8581 - val_accuracy: 0.1694 - lr: 5.0000e-04
+Epoch 3/10
+27/27 [==============================] - ETA: 0s - loss: 1.3192 - accuracy: 0.6556
+Epoch 3: saving model to model_weights.h5
+27/27 [==============================] - 2s 82ms/step - loss: 1.3192 - accuracy: 0.6556 - val_loss: 1.7346 - val_accuracy: 0.5208 - lr: 5.0000e-04
+Epoch 4/10
+27/27 [==============================] - ETA: 0s - loss: 1.0363 - accuracy: 0.7431
+Epoch 4: saving model to model_weights.h5
+27/27 [==============================] - 2s 79ms/step - loss: 1.0363 - accuracy: 0.7431 - val_loss: 1.3153 - val_accuracy: 0.6653 - lr: 5.0000e-04
+Epoch 5/10
+27/27 [==============================] - ETA: 0s - loss: 0.8677 - accuracy: 0.7792
+Epoch 5: saving model to model_weights.h5
+27/27 [==============================] - 2s 78ms/step - loss: 0.8677 - accuracy: 0.7792 - val_loss: 1.1249 - val_accuracy: 0.7250 - lr: 5.0000e-04
+Epoch 6/10
+27/27 [==============================] - ETA: 0s - loss: 0.7068 - accuracy: 0.8440
+Epoch 6: saving model to model_weights.h5
+27/27 [==============================] - 2s 81ms/step - loss: 0.7068 - accuracy: 0.8440 - val_loss: 0.9683 - val_accuracy: 0.7736 - lr: 5.0000e-04
+Epoch 7/10
+26/27 [===========================>..] - ETA: 0s - loss: 0.5857 - accuracy: 0.8591
+Epoch 7: saving model to model_weights.h5
+27/27 [==============================] - 2s 82ms/step - loss: 0.5848 - accuracy: 0.8579 - val_loss: 0.9038 - val_accuracy: 0.7694 - lr: 5.0000e-04
+Epoch 8/10
+27/27 [==============================] - ETA: 0s - loss: 0.4732 - accuracy: 0.8921
+Epoch 8: saving model to model_weights.h5
+27/27 [==============================] - 2s 77ms/step - loss: 0.4732 - accuracy: 0.8921 - val_loss: 0.7994 - val_accuracy: 0.7903 - lr: 5.0000e-04
+Epoch 9/10
+27/27 [==============================] - ETA: 0s - loss: 0.3932 - accuracy: 0.9102
+Epoch 9: saving model to model_weights.h5
+27/27 [==============================] - 2s 79ms/step - loss: 0.3932 - accuracy: 0.9102 - val_loss: 0.7403 - val_accuracy: 0.8069 - lr: 5.0000e-04
+Epoch 10/10
+26/27 [===========================>..] - ETA: 0s - loss: 0.3465 - accuracy: 0.9240
+Epoch 10: saving model to model_weights.h5
+27/27 [==============================] - 2s 85ms/step - loss: 0.3479 - accuracy: 0.9231 - val_loss: 0.6690 - val_accuracy: 0.8347 - lr: 5.0000e-04
+```
+You'll notice the model summary lists each layer in the model and the number of trainable parameters. Our relatively simple model has nearly 5 million parameters. With that in mind it is easy to see why training model can sometimes take hours, or even days.
+AFter the model summary the model was trained over 10 epochs. We set the maximum to be 10, which means the model didn't stop training early. This could indicate that the model might have improved if we let it run longer - something to keep in mind for later.
+You may notice that the first epoch took 42 seconds to train whereas the rest took about 2 s each. The first layer takes longer because some things need to be set up on the backend.
+You might also notice that our accuracy is 92%. Not too bad for a first try! 
+
+
