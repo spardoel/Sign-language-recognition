@@ -114,4 +114,16 @@ main(WebCam())
 
 ## Real-time sign classification first try
 
+I ran the program and started signing the alphabet. Here is a short video of the first test. I signed the letters A, B, C, D, E, F, A.
+
+https://user-images.githubusercontent.com/102377660/188236875-24ed3ee4-1087-409a-b216-3d11b66e6971.mp4
+
+As you can tell from the video, the model had no idea what was going on an was essentially useless. 
+Eventhough the model had a decent validation accuracy (83%) the model is completely unable to identify the alphabet when I sign. 
+So what now? 
+Honestly, this result was not that surprising. After all, the model only used 100 samples from each of the 30+ classes, it's no wonder it isn't doing well. Plus, keep in mind that the model is relatively simple. 
+
+## Wrap up
+Ok, so the model basically sucked. But that's ok, cause I had a plan!
+The next step was to adjust the model, re-train it and try again. 
 
