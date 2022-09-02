@@ -463,6 +463,6 @@ Epoch 10: saving model to model_weights.h5
 You'll notice the model summary lists each layer in the model and the number of trainable parameters. Our relatively simple model has nearly 5 million parameters. With that in mind it is easy to see why training model can sometimes take hours, or even days.
 AFter the model summary the model was trained over 10 epochs. We set the maximum to be 10, which means the model didn't stop training early. This could indicate that the model might have improved if we let it run longer - something to keep in mind for later.
 You may notice that the first epoch took 42 seconds to train whereas the rest took about 2 s each. The first layer takes longer because some things need to be set up on the backend.
-You might also notice that our accuracy is 92%. Not too bad for a first try! 
+You might also notice that the validation accuracy is 83%. Not too bad for a first try! 
 
 
