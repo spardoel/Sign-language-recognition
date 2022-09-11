@@ -113,10 +113,187 @@ The increasing validation loss is a bad sign and could indicate that more traini
 Since I had just deleted all the ambiguous videos thus further reducing the size of the dataset, I turned to data augmentation to help compensate.
 
 Data augmentation refers to the process of making copies of existing data sample but altering them in some way to artificially produce more 'new' data samples.
-For the data augmentaion I used the Vidaug library from github (https://github.com/okankop/vidaug). The repository home page does a good hob illustrating the different augmentation appraoches included in the library. 
+For the data augmentaion I used the Vidaug library from github (https://github.com/okankop/vidaug). The repository home page does a good job illustrating the different augmentation appraoches included in the library. 
+
+My my data augmentation I wrote some new code. First, some imports 
+```
+import numpy as np
+import cv2
+import os
+import random
+
+from PIL import Image
+
+from vidaug import augmentors as va
+```
+Notice that the video augmentation library is imported as va.
+Next I created a few functions. First, the function that will create the data agumentor object based on the input parameter. Here is the code. 
+
+```
+def get_augmentor(augmentation):
+
+    if augmentation == "HorizontalFlip":
+        seq = va.Sequential([va.HorizontalFlip()])
+    elif augmentation == "Rotate":
+        seq = va.Sequential([va.RandomRotate(degrees=10)])
+    elif augmentation == "Translate":
+        seq = va.Sequential([va.RandomTranslate(x=60, y=60)])
+    elif augmentation == "Add":
+        add_amount = random.randint(10, 60)
+        seq = va.Sequential([va.Add(add_amount)])
+    elif augmentation == "Subtract":
+        add_amount = random.randint(-60, -10)
+        seq = va.Sequential([va.Add(add_amount)])
+    elif augmentation == "Salt":
+        salt_amount = random.randint(75, 120)
+        seq = va.Sequential([va.Salt(salt_amount)])
+    elif augmentation == "Pepper":
+        salt_amount = random.randint(75, 120)
+        seq = va.Sequential([va.Pepper(salt_amount)])
+
+    return seq
+```
+I wrote this function specifically to be self explanatory. The input parameter is the name of the desired transformation. The function just checks the input string and returns an augmentation object that performs that augmentation. There is some nuance regarding the numerical values used as additional parameters. For example, the random rotation transformation requires a maximum angle of rotation. In this case I provided 10 degrees. When applied to the video, the augmentation will randompy select an amount between 0 and 10 and rotate the video accordingly. The same is true for the random translation augmentation wich generates a random value between 0 and the provided value. For the other transformations that do not perform randomization, I added that myself. For example, the Add and Subtract augmentations make the video lighter or darker by a set amount. Before passing the value to the augmentor, I randomized the amount within a specific range. 
+Let's move on to the other functions. 
+Here is the video loader function. 
+```
+def load_video(video_path):
+    cap = cv2.VideoCapture(video_path)
+
+    frames = []
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            PIL_image = Image.fromarray(frame)
+            # must use the PIL Image format. Otherwise the image rotation doesn't work and corrupts the video.
+            # (the flip works with numpy arrays though)
+
+            frames.append(PIL_image)
+
+    finally:
+        cap.release()
+    return frames
+```
+First the video path is used to create an OpenCV video capture object. Then each frame is converted to a PIL image format and appended to a list of frames. 
+The video augmentation library works best with PIL formats. I tried to use numpy array format but the resulting video was garbled when performaing certain tranformations. 
+Moving on to the function that generates the new save path for the transformed videos. 
+```
+def create_save_path(input_path, folder, suffix=""):
+    # get current directory
+    curent_directory = os.getcwd()
+
+    # Check if the destination folder apready exists
+    new_folder_path = os.path.join(curent_directory, "augmented", folder)
+    try:
+        os.mkdir(new_folder_path)
+    except:
+        print("destination folder already exists")
+
+    # get the name of the video file
+    video_file = os.path.basename(input_path)  # get the video name
+
+    # Add the transformation type to the name
+    new_save_path = os.path.join(
+        new_folder_path, video_file[:-4] + "_" + suffix + ".mp4"
+    )
+
+    return new_save_path
+```
+The function accepts the video path, the folder name, and the suffix to append to the end of the video name string. 
+After creating a new save folder if needed, the video name is taken from the path using os.path.basename(). Then, the new file save path is created by joining the path, the video name (with the '.mp4' removed), and underscore, the suffix, and finally the .mp4 file type. This name is then returned. 
+
+The next function is used to save the augmented video. 
+```
+def write_video_to_file(save_path, frames):
+
+    print(f"Saving: {save_path}")
+    # by default the fps or all videos is 25
+    out = cv2.VideoWriter(
+        save_path,
+        cv2.VideoWriter_fourcc(*"mp4v"),
+        25,
+        (350, 350),  # assuming a square image
+    )
+
+    for frame in frames:
+        out.write(np.asarray(frame))
+
+    out.release()
+```
+The function accepts the save path and the video frames. Then, as previously done, a videowriter object is created. Here, the frame rate and image size are manually set, for convinience. If this script were ever integrated into a larger project, I would want these values to be automatically infered from the loaded video. Ok, moving on. 
+Next I defined a list containing the desired tranformations. 
+```
+transformations = [
+    "HorizontalFlip",
+    "Rotate",
+    "Translate",
+    "Add",
+    "Subtract",
+    "Salt",
+    "Pepper",
+]
+
+```
+Then, the main function. 
+```
+for class_folder in dataset_path:
+    class_path = os.path.join(DATASET_LOCATION, class_folder)
+
+    videos_in_class = os.listdir(class_path)
+
+    for video_file in videos_in_class:
+        video_path = os.path.join(class_path, video_file)
+
+        video = load_video(video_path)
+
+        # for each type of augmentation
+
+        for augment in transformations:
+
+            seq = get_augmentor(augment)
+
+            augmented_video = seq(video)
+
+            save_path = create_save_path(video_path, class_folder, suffix=augment)
+
+            write_video_to_file(save_path, augmented_video)
+
+```
+For each folder in the dataset directory, the list of available videos is generated using os.listdir. Each video is loaded in turn, and for each video, each transformation is applied. After the transformation, the video is saved. 
+Here is an example of the output videos. 
+First the original video. 
+
+https://user-images.githubusercontent.com/102377660/189548009-af9a8ac9-9352-462f-9d80-958d4a8f108a.mov
+
+Then the horizontal flip
+
+https://user-images.githubusercontent.com/102377660/189548014-d8df58fa-c2e2-493e-a49b-39681cc2b380.mov
+
+The translation
+
+https://user-images.githubusercontent.com/102377660/189548802-3a695db2-7f6b-4b08-b112-310e4d69378d.mov
+
+The salt and pepper.
+
+https://user-images.githubusercontent.com/102377660/189548820-e41ba378-035a-4dd2-b4e1-fc04bcd7914d.mov
+
+https://user-images.githubusercontent.com/102377660/189548824-6809a86b-d11a-4d71-b80f-131c53ce67ce.mov
+
+The Add and subtract
+
+https://user-images.githubusercontent.com/102377660/189548838-b083f644-789f-463b-aec3-ea8ff047e763.mov
+
+https://user-images.githubusercontent.com/102377660/189548843-09b6fda7-13ef-4860-ab68-37c07c870dc5.mov
 
 
+And, finally, the rotation
+
+https://user-images.githubusercontent.com/102377660/189548854-a5cb64ec-fc33-4a97-bbeb-0db39a8357b0.mov
 
 
-
-
+## Wrap up
+With the newly generated videos I had more data to work with. It was time to take another crack at classification. 
+But first a few minor changes needed to be made in order to accept the new video inputs... 
