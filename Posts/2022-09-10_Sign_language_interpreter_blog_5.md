@@ -178,6 +178,9 @@ I briefly considered building a custom, super deep 3-dimensional CNN, but then r
 
 I decided to use a pre-trained image classification model as a feature extractor and then train a handful of recurrent layers on top of that. For this I used the pre-trained Keras applications models, but more on that later. 
 
+Note, that the following functions were adapted from the Keras documenation, found here
+(https://keras.io/examples/vision/video_classification/).
+
 ### Train / test partitions
 
 To split the data into subsets I used the pandas dataframe with the video paths and labels. 
@@ -197,7 +200,7 @@ print(f"Training samples: {len(train_df)}, Test samples: {len(test_df)}, Validat
 ```
 I set the train / test split to be 80%. Then, from the training data I took 25% for validation. I did this using scikit-learn's train_test_split() function twice, as shown above. 
 
-### Feature extraction
+### Video loader
 
 After deciding to use a transfer learning appraoch I had some functions to set up. 
 
@@ -210,7 +213,7 @@ IMG_SIZE = 350
 MAX_SEQ_LENGTH = 50  # frame rate is 25, so 50 frames is 2 seconds of video
 
 # Define the crop function
-def crop_center_square(frame, box_coordinates):
+def crop_frame(frame, box_coordinates):
     x1, y1, x2, y2 = box_coordinates # unpack the coordinates
     return frame[y1:y2, x1:x2]
 
@@ -234,7 +237,7 @@ def load_video(path,max_frames=0,resize=(IMG_SIZE, IMG_SIZE),crop_box=(0, 0, 0, 
             if counter >= start_end_frames[0]:
             
                 # prepare the frame
-                frame = crop_center_square(frame, crop_box)
+                frame = crop_frame(frame, crop_box)
                 frame = cv2.resize(frame, resize)
                 frame = frame[:, :]
                 
@@ -250,8 +253,150 @@ def load_video(path,max_frames=0,resize=(IMG_SIZE, IMG_SIZE),crop_box=(0, 0, 0, 
                 break
     finally:
         cap.release()
-    return frames
+    # return video as a numpy array
+    return np.asarray(frames).astype(dtype=np.int32)
 
 ```
 
 The load_video() function accepts the video path, the maximum number of frames allowed, the desired image output size, and coordinates of the desired crop-box, and the start and end frame numbers. The function first opens the video using openCV VideoCapture(). Next while new frames frames are available a new frame is loaded from the video. If the frame number counter is greater than the 'start frame' then process the frame and save it. Processing includes cropping, resizing and appending to the 'frames' list. Next, check the stopping conditions. The loop with stop early if the maximum number of frames is reached, or if the 'end frame' is reached provided that the 'end_frame' is different than the last frame of the video. A frame end value of -1 indicates that the desired clip goes to the end of the video, so the stopping condition using the frame end value is only relevant if the value is not -1.
+Alongside the load_video() function, the crop_frame() function was also written. This function simply uses slice notation to select a section of the frame.
+
+### Feature extraction
+
+As mentioned previously, I used a pre-trained model as a feature extractor. 
+I selected the EfficientNetB0 (https://keras.io/api/applications/efficientnet/#efficientnetb0-function) because it is relatively small, was among the fastests networks available. Since I am classifying videos, the feature extraction will need to be run 25 times for every second of video. For this reason I opted for a fast model. The InceptionV3 is another possibility that I kept in mind as another option for later model tweaking. Below is the function that creates the feature extractor model.
+
+```
+# build feature extractor
+def build_feature_extractor():
+    # Select the pre-trained model to used form the Keras applications
+    feature_extractor = keras.applications.EfficientNetB0(
+        weights="imagenet",
+        include_top=False,
+        pooling="avg",
+        input_shape=(IMG_SIZE, IMG_SIZE, 3),
+    )
+
+    preprocess_input = keras.applications.efficientnet.preprocess_input
+
+    # define the input size
+    inputs = keras.Input((IMG_SIZE, IMG_SIZE, 3))
+
+    preprocessed = preprocess_input(inputs)
+
+    outputs = feature_extractor(preprocessed)
+    
+    # return the feature extraction model
+    return keras.Model(inputs, outputs, name="feature_extractor")
+
+# build the feature extractor
+feature_extractor = build_feature_extractor()
+```
+
+To generate the model, keras needed the size of the input image. This was set using the IMG_SIZE constant which was also used to resize the images during the video loading. The function prepares the pre-trained model and returns it. 
+
+### Label processing 
+
+This step uses keras StringLookup() to generate a list of the labels. These are then used later in the model training. 
+```
+label_processor = keras.layers.StringLookup(num_oov_indices=0, vocabulary=np.unique(train_df["video_labels"]))
+
+class_vocab = label_processor.get_vocabulary()
+```
+Class_vocab is a list of strings representing each of the classes. 
+
+### Main function for video pre-processing
+
+This function loops through each entry of the dataframes and processes the video. As shown below, the code unpacks the dataframe, then loops through the video paths. The video is loaded, then the feature extractor is used to generate the features and masks. 
+
+```
+NUM_FEATURES = 1280
+
+def prepare_all_videos(df):
+    num_samples = len(df)
+    video_paths = df["video_paths"].values.tolist()
+    video_crop_boxes = df["box_x1y1x2y2"].values.tolist()
+    labels = df["video_labels"].values
+    labels = label_processor(labels[..., None]).numpy()
+
+    # `frame_masks` and `frame_features` are what we will feed to our sequence model.
+    # `frame_masks` will contain a bunch of booleans denoting if a timestep is
+    # masked with padding or not.
+
+    # initialise the mask and features arrays
+    frame_masks = np.zeros(shape=(num_samples, MAX_SEQ_LENGTH), dtype="bool")
+    frame_features = np.zeros(
+        shape=(num_samples, MAX_SEQ_LENGTH, NUM_FEATURES), dtype="float32"
+    )
+
+    # For each video.
+    for idx, path in enumerate(video_paths):
+        # Gather all its frames and add a batch dimension.
+        frames = load_video(
+            path,
+            max_frames=MAX_SEQ_LENGTH,
+            resize=(IMG_SIZE, IMG_SIZE),
+            crop_box=video_crop_boxes[idx],
+        )
+        frames = frames[None, ...]
+
+        # Initialize placeholders to store the masks and features of the current video.
+        temp_frame_mask = np.zeros(shape=(1, MAX_SEQ_LENGTH), dtype="bool")
+        temp_frame_features = np.zeros(
+            shape=(1, MAX_SEQ_LENGTH, NUM_FEATURES), dtype="float32"
+        )
+
+        # Extract features from the frames of the current video.
+        for i, batch in enumerate(frames):
+
+            video_length = batch.shape[0]
+            length = min(MAX_SEQ_LENGTH, video_length)
+            for j in range(length):
+                temp_frame_features[i, j, :] = feature_extractor.predict(
+                    batch[None, j, :]
+                )
+            temp_frame_mask[i, :length] = 1  # 1 = not masked, 0 = masked
+
+        frame_features[
+            idx,
+        ] = temp_frame_features.squeeze()
+        frame_masks[
+            idx,
+        ] = temp_frame_mask.squeeze()
+
+    return (frame_features, frame_masks), labels
+```
+
+### Preprocess and save the data subsets
+
+The process of feature extraction takes a few minutes. To help speed up the process of model development, I decided to save the features and masks as a pickle file. This intermediary step means that when running the model later on I don't need to re-do the feature extraction every time, instead I can simply load the data and jump straight to model training. 
+
+```
+print("Extracting features")
+train_data, train_labels = prepare_all_videos(train_df)
+val_data, val_labels = prepare_all_videos(valid_df)
+test_data, test_labels = prepare_all_videos(test_df)
+
+
+# Saving the objects:
+with open("preprocessed_videos.pkl", "wb") as f:  # Python 3: open(..., 'wb')
+    pickle.dump(
+        [
+            train_data,
+            train_labels,
+            val_data,
+            val_labels,
+            test_data,
+            test_labels,
+            class_vocab,
+        ],
+        f,
+    )
+
+```
+
+# Wrap up 
+
+Running the feature extraction took about 20 minutes for 15 labels and 282 videos. After the feature extraction the features and masks were saved so that this step can be skipped in the future. 
+
+With the features ready, the next step will be creating the recurrent neural network model and training it. 
