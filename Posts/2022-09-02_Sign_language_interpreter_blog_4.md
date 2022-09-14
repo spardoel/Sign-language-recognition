@@ -185,7 +185,9 @@ https://user-images.githubusercontent.com/102377660/188240918-c5facbcf-6e09-4916
 As you can see the model struggled a bit with G and H, had no idea aboud I and J, and correctly identified K. Then, shockingly, the model failled to identify L, instead thinking it was an A... I say shockingly, because to me L seems like one of the easiest to identify. Just goes to show you that what is obvious to you and me can be hard for computers.
 
 ## Wrap up
-In the second attempt the model did much better! It identified many of the letters correctly. The model was unable to identify some of the letters, but there is a definite improvement over the previous model. While I was tweaking the model and trying to improve performance I discovered that the modeled seemed totally incapable of identifying M, N, and T. After some invertigation, I think I know why... I'll explain in the next post.
+In the second attempt the model did much better! It identified many of the letters correctly. The model was unable to identify some of the letters, but there is a definite improvement over the previous model. While I was tweaking the model and trying to improve performance I discovered that the modeled seemed totally incapable of identifying M, N, and T. After some investigation, I think I know why. It turns out that there are some problems with the dataset. Mainly, the signs used for M, N and T are not the standard ASL signs I had found. So it was no surprise the model couldn't recognize the signs I was showing, it had never seen them before!
+
+This marks the end of phase 1 of this project. I had created a program that can classify the sign language alphabet from a live video. Sure, the model wasn't great and had never seen the letters N,M or T before, but how important are those letter really? I was satisfied enough to move on to phase 2 of the project. I'll explain more in the next post. 
 
 
 
