@@ -1,9 +1,0 @@
-# Developing a sign language interpreter using machine learning Part 1 - Introduction
-
-First of all, thanks for checking out my Github page! 
-
-My goals for this project are to utilize various machine learning methods for image and video classification. I will start with classification of the American Sign Language alphabet. After that I would like to move to video classification of other sign language words. 
-
-## Dataset
-To start I am using the American Sign Language (ASL) Dataset from kaggle. (https://www.kaggle.com/datasets/prathumarikeri/american-sign-language-09az?resource=download)
-The dataset has several thousand images of each letter of the alphabet. 
