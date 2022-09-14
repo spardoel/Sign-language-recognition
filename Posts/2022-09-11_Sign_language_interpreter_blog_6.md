@@ -135,28 +135,25 @@ After the model finished training, I wanted to be able to visualize the training
 For that the following code was added. 
 ```
 def check_random_test_sample():
-
     # randomly select an sample from the test set
     test_vid_num = random.randint(0, len(test_labels) - 1)
-    
+
     # get the true label of the sample
     test_video_label = test_labels[test_vid_num]
 
     # Print the true label
     print(f"Test video label: {class_vocab[test_video_label[0]]}")
-    
+
     # pass the sample video and video number (index) to the prediction function
     sequence_prediction(test_data, test_vid_num)
+
 
 def sequence_prediction(test_data_video, test_vid_number):
 
     # get the frames and masks from the input video
     frame_features = test_data_video[0][test_vid_number][np.newaxis, :]
     frame_mask = test_data_video[1][test_vid_number][np.newaxis, :]
-    
-    #frame_mask2 = frame_mask[np.newaxis, :]
-    #frame_features2 = frame_features[np.newaxis, :, :]
-    
+
     # Run the model and get the probability that the video belongs to each class
     probabilities = sequence_model.predict([frame_features, frame_mask])[0]
 
