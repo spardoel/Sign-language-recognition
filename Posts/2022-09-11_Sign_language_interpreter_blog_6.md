@@ -1,10 +1,11 @@
 # Developing a sign language interpreter using machine learning Part 6 - Training a model for video identification
 
 In the previous post I briefly introduced the dataset and the data preparation methods. In this post, I will go over loading the features, and training a model for classification. 
+The code for this post can be found in "Code files/loadFeaturesAndTrainModel.py"
 
 ## Load the features and masks
 
-To start, I loaded the pickle file.
+To start, I loaded the pickle file with the features and masks that was created in the previous post.
 ```
 # Load the pickle file with the datasets
 with open("preprocessed_videos.pkl", "rb") as f:
@@ -40,7 +41,7 @@ The model creation was placed inside a function called get_sequence_model(). Her
 MAX_SEQ_LENGTH = 50
 NUM_FEATURES = 1280
 
-# Utility for our sequence model.
+# Creation of the sequence model.
 def get_sequence_model():
     # define input shapes using the number of features and max video length constants
     frame_features_input = keras.Input((MAX_SEQ_LENGTH, NUM_FEATURES))
@@ -82,33 +83,28 @@ def get_sequence_model():
 
 ```
 First the constants for the number of features and the max video length are defined. Theoretically these could be inferred from the loaded data, but here they are just defined manually. 
-The model is pretty straightforward. Two simple RNN layers are used followed by several dense layers with droput between each. This configurationwas determined mainly based on some trial and error. 
-The Adam optimizer is used with an initial learning rate of 0.0005, and categorical cross entropy is used as the loss metric. 
+The model is pretty straightforward. Two simple RNN layers are used followed by several dense layers with droput between each. This configuration was determined mainly based on some trial and error. The dropouts were included to help prevent overfitting.
+The Adam optimizer was used with an initial learning rate of 0.0005, and categorical cross entropy was used as the loss metric. 
 
 ## Setting up the model training
 
 To create and train the model, a new function was created. 
 
 ```
-
 BATCH_SIZE = 8
 EPOCHS = 50
 
-# Utility for running experiments.
+# The main function to train the model
 def run_experiment():
-    ## define some keras callbacks
+    # define some keras callbacks
+    
     # define a learning rate schedule to reduce learning rate by 10 for every 2 epochs without an improvement in validation loss
     reduce_lr = ReduceLROnPlateau(
-        monitor="val_loss", factor=0.5, patience=10, min_lr=0.00001, mode="auto"
+        monitor="val_loss", factor=0.5, patience=5, min_lr=0.00001, mode="auto"
     )
     # define the early stopping callback
     early_stopping_cb = EarlyStopping(
         monitor="val_accuracy", patience=10
-    )
-    # define the callback to periodically save the model weights
-    filepath = "video_classifier.h5"
-    checkpoint = ModelCheckpoint(
-        filepath, save_weights_only=True, save_best_only=True, verbose=1
     )
 
     # get the model
@@ -121,45 +117,60 @@ def run_experiment():
         batch_size=BATCH_SIZE,
         validation_data=([val_data[0], val_data[1]], val_labels),
         epochs=EPOCHS,
-        callbacks=[checkpoint, reduce_lr],
+        callbacks=[early_stopping_cb, reduce_lr],
     )
 
     return history, seq_model
+    
+
+# Train the model
+history, sequence_model = run_experiment()
 ```
 After setting the number of training epochs and the batch size as constants, the run_experiment() function is created. 
-The function starts by defining the learning rate schedule callback, the early stopping callback and the callback to periodically save the model weights. Then the model is created and trained. 
+The function starts by defining the learning rate schedule callback and the early stopping callback. The learning rate scheduler is specifically intended to reduce the learning rate when the model training hits a plateau. The inputs for this callback determine what value to monitor, how much to decrease the learning rate by, the minimum learning rate and how many epochs must be completed without improvement before the learning rate is changed. Similarly, the early stopping callback monitors the validation accuracy and will stop the model training if there was no improvement in the last 10 epochs. Then the model is created and trained. The model training parameters are simply the training data, the batch size, the validation dataset, the maximum number of epochs and the callback functions. Finally, the run_experiment() function is called to start the model training. The function returns the training history and the trained model. The history is used for visualization of the training.
 
 ## Setting up the model evaluation and visualization
 
-After the model finished training, I wasnted to be able to visualize the training process and check the a few test samples. 
+After the model finished training, I wanted to be able to visualize the training process and check a few test samples. I realize that checking 2 or 3 samples from the test set is not an adequate test. But at this point I just wanted to make sure everything was working and that I was able to run the trained model on new videos. I would need to be able to do that for the next phase I was planning, but let's not get ahead of ourselves. For now, the model visualization was coded and a few samples were tested.  
 For that the following code was added. 
 ```
+def check_random_test_sample():
+
+    # randomly select an sample from the test set
+    test_vid_num = random.randint(0, len(test_labels) - 1)
+    
+    # get the true label of the sample
+    test_video_label = test_labels[test_vid_num]
+
+    # Print the true label
+    print(f"Test video label: {class_vocab[test_video_label[0]]}")
+    
+    # pass the sample video and video number (index) to the prediction function
+    sequence_prediction(test_data, test_vid_num)
+
 def sequence_prediction(test_data_video, test_vid_number):
 
-    frame_features = test_data_video[0][test_vid_number]
-    frame_mask = test_data_video[1][test_vid_number]
-    frame_mask2 = frame_mask[np.newaxis, :]
-    frame_features2 = frame_features[np.newaxis, :, :]
-    probabilities = sequence_model.predict([frame_features2, frame_mask2])[0]
+    # get the frames and masks from the input video
+    frame_features = test_data_video[0][test_vid_number][np.newaxis, :]
+    frame_mask = test_data_video[1][test_vid_number][np.newaxis, :]
+    
+    #frame_mask2 = frame_mask[np.newaxis, :]
+    #frame_features2 = frame_features[np.newaxis, :, :]
+    
+    # Run the model and get the probability that the video belongs to each class
+    probabilities = sequence_model.predict([frame_features, frame_mask])[0]
 
+    # display the probabilities
     print("Model prediction probabilities:")
     for i in np.argsort(probabilities)[::-1]:
         print(f"  {class_vocab[i]}: {probabilities[i] * 100:5.2f}%")
 
 
-def check_random_test_sample():
-    test_vid_num = random.randint(0, len(test_labels) - 1)
-    test_video_label = test_labels[test_vid_num]
-    # test_video = np.random.choice(test_df["video_labels"].values.tolist())
-    print(f"Test video label: {class_vocab[test_video_label[0]]}")
-    sequence_prediction(test_data, test_vid_num)
-
-
 check_random_test_sample()
 check_random_test_sample()
 check_random_test_sample()
 ```
-To evaluate the model the sequence_prediction() and check_random_test_sample() functions were created. These select a random sample from the test set and classify the video using the trained model. 
+To evaluate the model the check_random_test_sample() and  sequence_prediction() functions were created. These select a random sample from the test set and classify the video using the trained model. 
 After this, the training history is plotted uing matplotlib as shown below. 
 ```
 
@@ -191,6 +202,7 @@ plt.show()
 ```
 
 ## Running the code
+
 Alright, with those functions out of the way it was time to run the code and train the model! 
 For this first run, the batch size was set to 8 and the model was limited to 50 epochs. Here was the output. 
 ```
@@ -453,8 +465,8 @@ And here is the graph of the training progress.
 
 ![video training 1 Sept 11 2022](https://user-images.githubusercontent.com/102377660/189537495-c44c0d42-4e35-48f3-bb9c-7209e1c41ef3.JPG)
 
-Hmmm not very good. The training and validation accuracy are both pretty low and the validation loss was increasing. Looking at the 3 random test samples, the model didn't guess any of them correctly. 
+Hmmm not very good. The training and validation accuracy are both pretty low, there was a large difference between the results of the training and validation data, and the validation loss was even increasing when it should be decreasing. Looking at the 3 random test samples, the model didn't guess any of them correctly. Well crap. 
 
 ## Wrap up 
-Well the model pretty much sucked. I spent some time testing different model configurations and training parameters. In some situations the model trained better, but the validation accuracy was still very poor and the validation loss always increased. 
-Something clearly wasn't working. My next step was to re-organize the dataset into sub folders and take a look at the input data more closely. As they says, garbage in garbage out. I was certainly getting a garbage output, so I needed to check the inputs. 
+So... the model pretty much sucked. I spent some time testing different model configurations and training parameters. In some situations, the model trained better, but the validation accuracy was still very poor and the validation loss always increased. 
+Something clearly wasn't working. My next step was to re-organize the dataset into sub folders and take a look at the input data more closely. As they say, garbage in garbage out. I was certainly getting a garbage output, so I needed to check the inputs and if needed, try to make them less trashy. 
