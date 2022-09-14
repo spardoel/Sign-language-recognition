@@ -21,7 +21,7 @@ The following code files contain the code for this phase:
 
 ```
 "Code files/sign_alphabet_train_model.py"
-"Code files/run_sign_language_alphabet_detector_color.py"
+"Code files/run_sign_language_alphabet_detector.py"
 ```
 
 Here is a video of the final result of Phase 1.
