@@ -85,6 +85,7 @@ As you can see, the videos are not labeled. To identify the videos they needed t
 ## Match the videos to the labels
 
 Starting from some example code provided by the WLASL team, I wrote the following code to identify the videos. 
+The complete code for this post can be found in 'Code files/preprocessVideoAndSaveFeatures.py'
 
 ```
 import json
@@ -267,7 +268,7 @@ Alongside the load_video() function, the crop_frame() function was also written.
 ### Feature extraction
 
 As mentioned previously, I used a pre-trained model as a feature extractor. 
-I selected the EfficientNetB0 (https://keras.io/api/applications/efficientnet/#efficientnetb0-function) because it is relatively small,and was among the fastests networks available. Since I am classifying videos, the feature extraction will need to be run 25 times for every second of video (assuming a frame rate of 25 fps). For this reason, I opted for a fast model. The InceptionV3 is another possibility that I kept in mind as another option for later model tweaking. Below is the function that creates the feature extractor model.
+I selected the EfficientNetB0 (https://keras.io/api/applications/efficientnet/#efficientnetb0-function) because it is relatively small, and was among the fastests networks available. Since I am classifying videos, the feature extraction will need to be run 25 times for every second of video (assuming a frame rate of 25 fps). For this reason, I opted for a fast model. The InceptionV3, or MobileNet are other possibilities that I kept in mind as options for later model tweaking. Below is the function that creates the feature extractor model.
 
 ```
 # build feature extractor
@@ -294,9 +295,10 @@ def build_feature_extractor():
 
 # build the feature extractor
 feature_extractor = build_feature_extractor()
-```
 
-To generate the model, keras needed the size of the input image. This was set using the IMG_SIZE constant which was also used to resize the images during the video loading. The function prepares the pre-trained model and returns it. 
+NUM_FEATURES = 1280
+```
+To generate the model, keras needed the size of the input image. This was set using the IMG_SIZE constant which was also used to resize the images during the video loading. The the pre-trained model is loaded and the input and output layers are set. The keras model is then returned. The number of features is also set as a constant.  
 
 ### Label processing 
 
@@ -313,8 +315,6 @@ Class_vocab is a list of strings representing each of the classes.
 This function loops through each entry of the dataframes and processes the video. As shown below, the code unpacks the dataframe, then loops through the video paths. The video is loaded, then the feature extractor is used to generate the features and masks. 
 
 ```
-NUM_FEATURES = 1280
-
 def prepare_all_videos(df):
     num_samples = len(df)
     video_paths = df["video_paths"].values.tolist()
@@ -322,8 +322,8 @@ def prepare_all_videos(df):
     labels = df["video_labels"].values
     labels = label_processor(labels[..., None]).numpy()
 
-    # `frame_masks` and `frame_features` are what we will feed to our sequence model.
-    # `frame_masks` will contain a bunch of booleans denoting if a timestep is
+    # 'frame_masks' and 'frame_features' are what we will feed the sequence model.
+    # 'frame_masks' will contain a bunch of booleans denoting if a timestep is
     # masked with padding or not.
 
     # initialise the mask and features arrays
@@ -372,7 +372,7 @@ def prepare_all_videos(df):
 
 ### Preprocess and save the data subsets
 
-The process of feature extraction takes a few minutes. To help speed up the process of model development, I decided to save the features and masks as a pickle file. This intermediary step means that when running the model later on I don't need to re-do the feature extraction every time, instead I can simply load the data and jump straight to model training. 
+The process of feature extraction takes a few minutes. To help speed up later model development, I decided to save the features and masks as a pickle file. This intermediary step means that when running the model later on I don't need to re-do the feature extraction every time, instead I can simply load the data and jump straight to model training. There is the code for feature extraction and saving. 
 
 ```
 print("Extracting features")
@@ -382,7 +382,7 @@ test_data, test_labels = prepare_all_videos(test_df)
 
 
 # Saving the objects:
-with open("preprocessed_videos.pkl", "wb") as f:  # Python 3: open(..., 'wb')
+with open("preprocessed_videos.pkl", "wb") as f: 
     pickle.dump(
         [
             train_data,
@@ -400,6 +400,6 @@ with open("preprocessed_videos.pkl", "wb") as f:  # Python 3: open(..., 'wb')
 
 # Wrap up 
 
-Running the feature extraction took about 20 minutes for 15 labels and 282 videos. After the feature extraction the features and masks were saved so that this step can be skipped in the future. 
+Running the feature extraction took about 20 minutes for 15 labels and 282 videos. After the feature extraction, the features and masks were saved so that this step can be skipped in the future. 
 
-With the features ready, the next step will be creating the recurrent neural network model and training it. 
+With the features ready, the next step is creating the recurrent neural network model and training it. 
