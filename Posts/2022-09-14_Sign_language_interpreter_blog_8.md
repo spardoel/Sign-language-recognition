@@ -4,7 +4,79 @@ So the first model was terrible. But the dataset has been reorganized and augmen
 
 ## Modifications to load the new dataset format
 
-Aug10
+The model training code needed to be modified to accept the new dataset format. 
+The original code file named "preprocess_and_save_video_features.py" was updated. This new version was creatively names "preprocess_and_save_video_features_2.py". The file is available on the "Code files" folder.
+
+Ok, so the only thing that changed was the beginning. In the previous version, the .json file had all the video details such as the class label and the coordinates of the person in the frame. In the newly reorganized dataset, the videos were already cropped and the labels corresponded to the name of the folder, so the json file was no longer needed. Instead, the videos paths were loaded into a dataframe with the labels being the name of the folder they were in. 
+Here is the code.
+
+```
+# augmented10 contains the pre-cropped and pre-sized videos
+DATASET_PATH = "augmented10/"
+
+# create 2 arrays, one with file ID and the other with gloss
+video_labels = []
+video_paths = []
+
+# Check each folder in the dataset. Each one corresponds to a class (category)
+for category in os.listdir(DATASET_PATH):
+    
+    # for each category folder create folder path
+    category_path = os.path.join(DATASET_PATH, category)
+
+    samples = os.listdir(category_path)
+
+    # for each image in the category subset
+    for video in samples:
+
+        # Add the image name to the path and append the image path and label to their respective lists
+        video_paths.append(os.path.join(category_path, video))
+        video_labels.append(category)
+
+
+# combine the lists into a pandas dataframe. First convert to pandas Series and then concatenate.
+df = pd.concat(
+    [
+        pd.Series(video_paths, name="video_paths"),
+        pd.Series(video_labels, name="video_labels"),
+    ],
+    axis=1,
+)
+
+
+# count the times each label (category) appears
+print(df["video_labels"].unique())
+print(df["video_labels"].value_counts())
+```
+Similar to the previous version, the function creates a dataframe to hold the video paths and labels. Here is the output when this section is run. 
+
+```
+['before' 'book' 'candy' 'chair' 'clothes' 'computer' 'cousin' 'drink'
+ 'go' 'who']
+go          154
+drink       126
+book         84
+chair        77
+cousin       77
+before       70
+candy        63
+who          63
+computer     56
+clothes      49
+```
+As you can see we now have way more videos than before. So far so good. 
+
+The next part of the code loads the video, performs the feature extraction and saves the data as a pickle file. It is similar to the previous code so I won't bother copying it here. Check out the "preprocess_and_save_video_features_2.py" file to see the full code. 
+
+After the augmented videos were labeled and processed, the next part of the code was run to train the model. 
+
+## Training the model with the augmented videos
+
+The part of the code that loaded the pickle file and trained the model did not need to be modified at all. I won't re-explain the code here. Check out the "load_features_and_train_model.py" file for the full code. In short, the model still used two SimpleRNN layers followed by 5 dense layers with a 30% dropout between each. 
+
+I thought the model may take longer to converge with the larger dataset so I increased the number of training epochs from 50 to 150.
+
+Here was the output for the model training. 
 
 ```
 Frame features in train set: (670, 50, 1280)
@@ -651,3 +723,14 @@ Model prediction probabilities:
   deaf:  0.00%
 (.venv) PS D:\Documents\Python proj
 ```
+Cool, now that I have verified that your mouse scroll wheel is working, let's talk about what happened. First things first, the model is MUCH better than last time! The training and validation accuracies were both 97% or above and the three random test videos were classified perfectly. 
+
+Here is the graph of the training progress. 
+
+![training simple RNN Aug10](https://user-images.githubusercontent.com/102377660/190521765-4e9731d8-3b9c-4bd7-ae5d-d33ad4231c33.JPG)
+
+Before you say anything, yes, I did forget to implement the earlt stopping callback... if I had the training probably would have terminated somewhere around the 60 th epoch. The other thing to notice is that after the performance reached a plateau, there was a noticeable difference between the values for the training and validation data. The difference is not huge so I am not too worried, but it is something to keep an eye on. 
+
+## Wrap up
+
+The model validation accuracy reached 97%. Pretty darn good, however; due to the data augmentation the samples in the validation set were very similar to the samples in the training set. Therefore, the model performance is probably overestimated. To find out just how good the model actually was, I wanted to set it up to run in real time. This way I could perform the signs myself and get the model to guess what I was signing. I'll talk about that in the next post. Thanks for reading. 
