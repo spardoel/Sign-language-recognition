@@ -2,7 +2,7 @@ import cv2
 import torch
 import numpy as np
 import json
-from cutomQueue import CircularQueue
+from utils import CircularQueue
 from keras.models import model_from_json
 import keras
 from keras import applications
