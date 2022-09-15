@@ -1,13 +1,13 @@
 # Developing a sign language interpreter using machine learning Part 7 - Reorganizing and inspecting the dataset
 
-In the previous post I talked about training the fisrt version of the sign language video classifier. In short, the model was useless. 
-But I have a confession to make. I didn't thoroughly inspect the data before starting. Since the videos were not labeled and I don't know sign language I would have had to code something to associate each video with the correct label and output them in a format I could understand. 
-I thought that perhaps this was unecessary and I could go straight into model development. Evidently not. So this post will go over the dataset checking and reorganization I did prior to trying to develop another model. 
+In the previous post I talked about training the first version of the sign language video classifier. In short, the model was useless. 
+But I have a confession to make. I didn't thoroughly inspect the data before starting. I know, I know, but let me explain. Since the videos were not labeled and I don't know sign language, I would have had to code something (oh, the horror!) to associate each video with the correct label and output them in a format I could understand. 
+I thought that perhaps this was unecessary, and to be honest I was excited to dive into model development. Evidently I should have taken the time to check the dataset. So, to make up for my previous impatience, this post will go over the dataset checking and reorganization that I was forced to do prior to trying to develop another model. 
 
 ## Save videos in separate class folders
 
-The code I wrote to re-organize the dataset started the same way the previous processing code did. The video paths and other details are loaded into a dataframe. Then the vidoes are cropped and resized. 
-After that, things changed a bit. Here is the main function. 
+The code I wrote to re-organize the dataset started the same way the previous processing code did. The video paths and other details were loaded into a dataframe. Then the vidoes processed (cropped and resized). 
+After that, things changed a bit. Here is the new main function. 
 ```
 def process_and_save_video(df_row):
     # accept a row from the main dataframe
@@ -27,6 +27,7 @@ def process_and_save_video(df_row):
 
     # Get the current working directory
     curent_directory = os.getcwd()
+    
     # Check if the destination folder apready exists
     new_folder_path = os.path.join(curent_directory, "data_folders", label)
     try:
@@ -36,6 +37,7 @@ def process_and_save_video(df_row):
 
     # get the video file name
     video_file = os.path.basename(video_path)  # get the video name
+    
     # join the file name to the new save path
     new_save_path = os.path.join(new_folder_path, video_file)
     print(f"Saving: {new_save_path}")
@@ -84,9 +86,10 @@ Now, call me crazy, but those appear to be completely different. Atfer a quick g
 All of these signs mean 'Computer' and they are used more or less commonly in different places. That was a very interesting discovery. 
 It goes a long way toward explaining why the model was so poor. We were telling the model that these were the same word, and yet they are very different movements. 
 To give the model the best chance of success, I went through the first 10 classes and removed different versions so that each class had a single sign. 
-According to my brief search, video 12326 showing a C-shaped hand brushing past the opposite forearm is the more common version. So all the videos showing this sign were saved and the others were deleted. 
+According to my brief search, video number 12326 which shows a C-shaped hand brushing past the opposite forearm is the more common version. So all the videos showing this sign were saved and the others were deleted. 
 
 ### Removing possibly confusing signs
+
 As the section title suggests, I also removed versions of signs that were technically correct but potentially confusing for the model. 
 Here is an example. All of these signs are 'Drink'.
 
@@ -103,19 +106,19 @@ https://user-images.githubusercontent.com/102377660/189546641-623124b7-7679-4d4e
 https://user-images.githubusercontent.com/102377660/189546642-702f7c17-f392-4568-8e94-fbca73165a7f.mov
 
 
-As you might notice, video 17716 shows the person performing the sign as if they are delicately drinking tea. To you or I, the extra meaning is obvious, but to the model, the splayed fingers of the right hand and the position of the left hand (mimicking a saucer) could be confusing.
-To help the model, I removed this video and other with similar variation. 
+As you might notice, video number 17716 shows the person performing the sign as if they are delicately drinking tea. Now, to you or I, the extra meaning is obvious. But to the model, the splayed fingers of the right hand and the position of the left hand (mimicking a saucer) could be confusing.
+To help the model, I removed this video and others with similar variation. 
 
 ## Dataset augmentation
 
-Now, if you recall the spectacularily terrible training of the video classification model, the validation loss was not decreasing as it should. 
+Now, if you recall the spectacularly terrible training of the video classification model, the validation loss was not decreasing as it should. 
 The increasing validation loss is a bad sign and could indicate that more training data is required. 
 Since I had just deleted all the ambiguous videos thus further reducing the size of the dataset, I turned to data augmentation to help compensate.
 
-Data augmentation refers to the process of making copies of existing data sample but altering them in some way to artificially produce more 'new' data samples.
+Data augmentation refers to the process of making copies of existing data samples but altering them in some way to artificially produce more 'new' data samples.
 For the data augmentaion I used the Vidaug library from github (https://github.com/okankop/vidaug). The repository home page does a good job illustrating the different augmentation appraoches included in the library. 
 
-My my data augmentation I wrote some new code. First, some imports 
+For my data augmentation I wrote some new code. First, some imports 
 ```
 import numpy as np
 import cv2
@@ -127,7 +130,7 @@ from PIL import Image
 from vidaug import augmentors as va
 ```
 Notice that the video augmentation library is imported as va.
-Next I created a few functions. First, the function that will create the data agumentor object based on the input parameter. Here is the code. 
+Next, I created a few functions. First, the function that will create the data agumentor object based on the input parameter. Here is the code. 
 
 ```
 def get_augmentor(augmentation):
@@ -153,7 +156,8 @@ def get_augmentor(augmentation):
 
     return seq
 ```
-I wrote this function specifically to be self explanatory. The input parameter is the name of the desired transformation. The function just checks the input string and returns an augmentation object that performs that augmentation. There is some nuance regarding the numerical values used as additional parameters. For example, the random rotation transformation requires a maximum angle of rotation. In this case I provided 10 degrees. When applied to the video, the augmentation will randompy select an amount between 0 and 10 and rotate the video accordingly. The same is true for the random translation augmentation wich generates a random value between 0 and the provided value. For the other transformations that do not perform randomization, I added that myself. For example, the Add and Subtract augmentations make the video lighter or darker by a set amount. Before passing the value to the augmentor, I randomized the amount within a specific range. 
+I wrote this function to be pretty self explanatory. (i.e., I could have used integers to refer to the different augmentations but I though using strings was more readable.) The input parameter is the name of the desired transformation. The function just checks the input string and returns an augmentation object that performs that augmentation. It is pretty simple, but there is some nuance regarding the numerical values used as additional parameters. For example, the Random Rotation transformation requires a maximum angle of rotation. In this case I provided 10 degrees. When applied to the video, the augmentation will randomly select an amount between 0 and 10 and rotate the video accordingly. The same is true for the Random Translation augmentation wich generates a random value between 0 and 60 in the x and y directions. For the other transformations that do not perform randomization, I added that myself. For example, the Add and Subtract augmentations make the video lighter or darker by a set amount. Before passing the value to the augmentor, I randomized the amount within a specific range. 
+
 Let's move on to the other functions. 
 Here is the video loader function. 
 ```
@@ -168,8 +172,7 @@ def load_video(video_path):
                 break
 
             PIL_image = Image.fromarray(frame)
-            # must use the PIL Image format. Otherwise the image rotation doesn't work and corrupts the video.
-            # (the flip works with numpy arrays though)
+            # must use the PIL Image format. Otherwise the image rotation doesn't work and corrupts the video. (flip works with numpy arrays though)
 
             frames.append(PIL_image)
 
@@ -179,6 +182,7 @@ def load_video(video_path):
 ```
 First the video path is used to create an OpenCV video capture object. Then each frame is converted to a PIL image format and appended to a list of frames. 
 The video augmentation library works best with PIL formats. I tried to use numpy array format but the resulting video was garbled when performaing certain tranformations. 
+
 Moving on to the function that generates the new save path for the transformed videos. 
 ```
 def create_save_path(input_path, folder, suffix=""):
@@ -193,7 +197,7 @@ def create_save_path(input_path, folder, suffix=""):
         print("destination folder already exists")
 
     # get the name of the video file
-    video_file = os.path.basename(input_path)  # get the video name
+    video_file = os.path.basename(input_path) 
 
     # Add the transformation type to the name
     new_save_path = os.path.join(
@@ -202,8 +206,8 @@ def create_save_path(input_path, folder, suffix=""):
 
     return new_save_path
 ```
-The function accepts the video path, the folder name, and the suffix to append to the end of the video name string. 
-After creating a new save folder if needed, the video name is taken from the path using os.path.basename(). Then, the new file save path is created by joining the path, the video name (with the '.mp4' removed), and underscore, the suffix, and finally the .mp4 file type. This name is then returned. 
+The function accepts the video path, the folder name, and the suffix to append to the end of the video name string. The suffix is used to indicate which transformation was applied.
+After creating a new save folder, if needed, the video name is taken from the path using os.path.basename(). Then, the new file save path is created by joining the path, the video name (with the '.mp4' removed), an underscore, the suffix, and finally the .mp4 file type. This name is then returned. 
 
 The next function is used to save the augmented video. 
 ```
@@ -262,7 +266,7 @@ for class_folder in dataset_path:
             write_video_to_file(save_path, augmented_video)
 
 ```
-For each folder in the dataset directory, the list of available videos is generated using os.listdir. Each video is loaded in turn, and for each video, each transformation is applied. After the transformation, the video is saved. 
+For each folder in the dataset directory, the list of available videos is generated using os.listdir(). Each video is loaded in turn, and for each video, each transformation is applied. This created multiple transformed copies of each video. After the transformation, the video is saved. 
 Here is an example of the output videos. 
 First the original video. 
 
