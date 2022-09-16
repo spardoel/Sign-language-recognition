@@ -32,12 +32,12 @@ https://user-images.githubusercontent.com/102377660/190267410-8db5a828-2a98-4d23
 
 ## Phase 2 - Word level recognition
 
-Here is a video of someone signing the word 'book'.
+In sign language, words are more complex than the alphabet. Here is a video of someone signing the word 'book'.
 
 https://user-images.githubusercontent.com/102377660/190267506-7b234af2-7e89-47b8-b268-ebf50c747379.mov
 
 
-This phase had basically the same goals but using videos instead of still images.
+Phase 2 of the project had basically the same goals but using videos instead of still images.
 
 1. Train a model that can classify video clips of ASL words. 
 2. Run the model in real time using video from my webcam. 
