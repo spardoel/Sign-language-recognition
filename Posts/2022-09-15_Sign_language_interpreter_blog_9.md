@@ -211,7 +211,122 @@ As you can see, the YOLO model identifies me in the frame and the bounding box i
 
 With the basic testing of the YOLO model, the 'person identification' part of the program was solved. 
 
-##
+## Feature extraction
+
+When training the model, the feature extraction took by far the longest. This was somewhat concerning. At first I implemented the feature extraction step exactly as I had it in the model training code. As a refresher, here is the feature extraction step in the previous code.
+
+```
+  # For each video.
+    for idx, path in enumerate(video_paths):
+        # Gather all its frames and add a batch dimension.
+        frames = load_video(
+            path,
+            max_frames=MAX_SEQ_LENGTH,
+        )
+        frames = frames[None, ...]
+
+        # Initialize placeholders to store the masks and features of the current video.
+        temp_frame_mask = np.zeros(
+            shape=(
+                1,
+                MAX_SEQ_LENGTH,
+            ),
+            dtype="bool",
+        )
+        temp_frame_features = np.zeros(
+            shape=(1, MAX_SEQ_LENGTH, NUM_FEATURES), dtype="float32"
+        )
+
+        # Extract features from the frames of the current video.
+        for i, batch in enumerate(frames):
+            video_length = batch.shape[0]
+            length = min(MAX_SEQ_LENGTH, video_length)
+            for j in range(length):
+                temp_frame_features[i, j, :] = feature_extractor.predict(
+                    batch[None, j, :]
+                )
+            temp_frame_mask[i, :length] = 1  # 1 = not masked, 0 = masked
+
+        frame_features[
+            idx,
+        ] = temp_frame_features.squeeze()
+        frame_masks[
+            idx,
+        ] = temp_frame_mask.squeeze()
+```
+Now, to be honest I hadn't gone through this code with a fine tooth comb. The feature extraction code was taken from the Keras documentation (https://keras.io/examples/vision/video_classification/). The code was working fine and I didn't see a reason to mess with it. Until now that is. So let's dive in. 
+
+Specifically, let's go through this section. 
+
+```
+        # Extract features from the frames of the current video.
+        for i, batch in enumerate(frames):
+            video_length = batch.shape[0]
+            length = min(MAX_SEQ_LENGTH, video_length)
+            for j in range(length):
+                temp_frame_features[i, j, :] = feature_extractor.predict(
+                    batch[None, j, :]
+                )
+            temp_frame_mask[i, :length] = 1  # 1 = not masked, 0 = masked
+
+```
+This is the part of the code that actually performs the feature extraction. I ran the code and paused it here in the debugger. Ok, so the 'frames' variable had a shape of (1,50,350,350,3). The 50 is the number of frames, the 350,350 are the width and height of the image (in pixels) and the 3 was the number of channels in the image (3 because it was a colour image). In the code section above, the first line uses enumerate(frames) to loop through the frames variable and keep track of the index. The 'frames' variable's first dimension was 1, so this loop only ran once. 
+Inside the loop, the length of the video was extracted, this is the number of frames in the clip. Then the length of the video is compared to the pre-set maximum length of 50, and the smaller of the two is saved as 'length'. Now the code loops through each of the frames in the clip. The features are saved for each feature. Then, the masks variable is populated with 1s where frames were available. Importantly, the variables used to store the features and masks were created as arrays of zeros. This means that if the video clip does not have the maximum number of frames, the features and mask variables will be padded with zeros. 
+
+This zero padding is all well and good since it compensates for shorter videos. But in the case of real-time implementation the zero padding is unecessary. When pulling frames from the camera, I can simply keep pulling frames until I reach the desired amount. No padding required. This means, I can simplify the feature extraction code and run it in efficient batches of 50 frames. Speaking of batches, I needed a way to collect a desired number of video frames to pass to the feature extractor. Then I wanted to be able to get a few more frames and pass those to the feature extractor. Sounds a bit like a queue don't you think?
+
+## Circular queue
+
+As I alluded in the previous section, I needed som way of collecting batches of frames. I could have simply taken the first X frames, classified the video clip, then taken the next X frames and classified those. But I wanted to allow for more frequent processing. By that I mean, I wanted to be able to collect overlapping video clips. For this I needed a data structure that could store a set amount of frames and replace the oldest frames as new ones because available. Did somebody say circular queue? 
+
+Circular queues are simple enough in theory. A set amount of space is allocated at creation and each new sample is added until the allocated space is full. Then the queue starts over and replaces the oldest entries with the new ones. What makes my implmentation slightly different is that I never wanted to access individual samples. So the typical first in first out, or first in last out terminology doesn't really apply. Instead, I wanted to get the entire contents of the queue once it was full. In addition I never actually wanted to remove any samples from the queue, I only wanted to overwrite the oldest ones. Enough with the talking, why don't I show you what I mean, eh?
+
+```
+class CircularQueue:
+    def __init__(self, max_size):
+        self.max_size = max_size
+        self.queue = [None] * max_size
+        self.head = self.tail = -1
+
+    # Insert an element into the circular queue
+    def enQueue(self, data):
+
+        if (self.tail + 1) % self.max_size == self.head:
+            print("The circular queue is full\n")
+
+        elif self.head == -1:
+            self.head = 0
+            self.tail = 0
+            self.queue[self.tail] = data
+        else:
+            self.tail = (self.tail + 1) % self.max_size
+            self.queue[self.tail] = data
+            
+    # Get the contents of the entire queue
+    def getQueue(self):
+        data = []
+        if self.head == -1:
+            print("No element in the circular queue")
+
+        elif self.tail >= self.head:
+            for i in range(self.head, self.tail + 1):
+                data.append(self.queue[i])
+
+        else:
+            for i in range(self.head, self.max_size):
+                data.append(self.queue[i])
+            for i in range(0, self.tail + 1):
+                data.append(self.queue[i])
+        return data
+```
+To write the circular queue I created a new class with a few relatively simple methods. The constructor method creates the class object and sets the size of the queue as 'max_size'. An empty list of that size is then created as self.queue. Next, the indexes indicating the position of the start and end of the queue are created as self.head and self.tail, and both are set to -1.
+
+The next method is called enqueue(). This method adds a new sample to the end of the queue, or, if the queue is full, it overwrites the oldest sample. 
+
+
+## Putting it all together
+
+I had figured out how to run the YOLO model to identify the person withing the frame. I had also inspected the feature extraction section of the code and come up with a plan to speed it up. Now it was time to put it all together. 
 
 
 
