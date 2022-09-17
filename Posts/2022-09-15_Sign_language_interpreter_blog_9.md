@@ -200,11 +200,8 @@ def gen(camera):
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
-
 # run the main function and pass in the camera object
 gen(VideoCamera())
-
-
 ```
 After the imports, the YOLO5-nano model is loaded. The font to be used when writing text on the video frames is set. Next, the VideoCamera class is defined. The __init__ method creates the video capture object. The __del__ method releases the object when the class is deleted. Next, the get_frame() method. This method reads the next frame from the video capture object. The frame is passed to the YOLO5 model and the results are converted to a pandas dataframe. Then the list (pandas Series technically) of detected objects is extracted. This step was not strickly necessary, but I think it makes the code a bit easier to understand. The code then loops through each of the detected objects. If the detected object is a 'person' then the label (i.e., 'person') is written in the top left hand corner of the frame.  Next, the coordinates of the bounding box are extracted and rounded. It was not strictly necessary to create the (x1,y1), and (x2,y2) intermediate variables, but I think it helps make the code easier to understand. After generating the coordinates, the bounding box was drawn on the frame and the frame was returned. Next, the main() method is created. This method requests the next frame, displays the processed frame, and checks for an exit condition. That's it. 
 
@@ -297,13 +294,14 @@ class CircularQueue:
 
     # Get the contents of the entire queue
     def getQueue(self):
+    # create the output variable
         data = []
         if self.head == -1:
             print("Queue is empty")
 
         pointer = self.head
+        
         while True:
-            # print(f"Head is {self.head}, tail is {self.tail}, pointer is {pointer}")
             data.append(self.queue[pointer])
 
             if pointer == self.tail:
@@ -326,9 +324,9 @@ class CircularQueue:
         # new line
         print()
 ```
-To write the circular queue I created a new class with a few relatively simple methods. The constructor method creates the class object and sets the size of the queue as 'max_size'. An empty list of that size is then created as self.queue. Next, the indexes indicating the position of the start and end of the queue are created as self.head and self.tail, and both are set to -1.
+To write the circular queue, I created a new class with a few relatively simple methods. The constructor method creates the class object and sets the size of the queue as 'max_size'. An empty list of that size is then created as self.queue. Next, the indexes indicating the position of the start and end of the queue are created as self.head and self.tail, and both are set to -1.
 
-The next method is called enqueue(). This method adds a new sample to the end of the queue, or, if the queue is full, it overwrites the oldest sample. First, this method checks if the head is -1. If yes, then this is the first element being added to the queue, set the head and tail to 0 and add the element to the queue. If this is not the first element being added, then increment the tail and add the element to the end of the queue. Notice that the tail is incremented using the modulo operator. This is the key to the function of a circular queue. The modulo operator returns the remainder of a division. So, 2 % 5 returns 2 because 5 goes into 2 o times with a remainder of 2. Crucially, 5 % 5 returns 0 since 5 goes into 5 once with no remainder. This means that incrementing the index then dividing by the maximum length of the queue will increment the index normally until the end of the quue is reached, at which point the index qill be reset to 0. This way the index starts over and loops through the queue again. Right, back to the code. After the tail is incremented and the data is saved to the queue, the tail iscompared to the head. If they are the same, the queue index has wrapped around and is overwiting the previous head value. In this case, increment the head to stay ahead of the tail. 
+The next method is called enqueue(). This method adds a new sample to the end of the queue, or, if the queue is full, it overwrites the oldest sample. First, this method checks if the head is -1. If yes, then this is the first element being added to the queue, set the head and tail to 0 and add the element to the queue. If this is not the first element being added, then increment the tail and add the element to the end of the queue. Notice that the tail is incremented using the modulo operator. This is the key to the function of a circular queue. The modulo operator returns the remainder of a division. So, 2 % 5 returns 2 because 5 goes into 2 zero times with a remainder of 2. Crucially, 5 % 5 returns 0 since 5 goes into 5 once with no remainder. This means that incrementing the index then dividing by the maximum length of the queue will increment the index normally until the end of the quue is reached, at which point the index qill be reset to 0. This way, the index starts over and loops through the queue again. Hence the name 'Circular' queue. Right, back to the code. After the tail is incremented and the data is saved to the queue, the tail is compared to the head. If they are the same, the queue index has wrapped around and is overwiting the previous head value. In this case, increment the head to stay ahead of the tail (the head stays ahead of the tail, get it? A-Head? I'm sorry, moving on). 
 
 The next method is the getQueue() method. This method will unravel the queue and return it in its entirety. For this, an index called 'pointer' is used. The pointer is set to equal the head. Then the element in the queue at location 'pointer' is appended to the 'data' variable which is used as the output. The code then checks if pointer is equal to tail. If so, then that was the last element in the queue, so break the while loop. Finally, return the data variable.
 
