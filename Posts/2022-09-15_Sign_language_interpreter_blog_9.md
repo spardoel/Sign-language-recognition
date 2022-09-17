@@ -328,7 +328,7 @@ To write the circular queue, I created a new class with a few relatively simple 
 
 The next method is called enqueue(). This method adds a new sample to the end of the queue, or, if the queue is full, it overwrites the oldest sample. First, this method checks if the head is -1. If yes, then this is the first element being added to the queue, set the head and tail to 0 and add the element to the queue. If this is not the first element being added, then increment the tail and add the element to the end of the queue. Notice that the tail is incremented using the modulo operator. This is the key to the function of a circular queue. The modulo operator returns the remainder of a division. So, 2 % 5 returns 2 because 5 goes into 2 zero times with a remainder of 2. Crucially, 5 % 5 returns 0 since 5 goes into 5 once with no remainder. This means that incrementing the index then dividing by the maximum length of the queue will increment the index normally until the end of the quue is reached, at which point the index qill be reset to 0. This way, the index starts over and loops through the queue again. Hence the name 'Circular' queue. Right, back to the code. After the tail is incremented and the data is saved to the queue, the tail is compared to the head. If they are the same, the queue index has wrapped around and is overwiting the previous head value. In this case, increment the head to stay ahead of the tail (the head stays ahead of the tail, get it? A-Head? I'm sorry, moving on). 
 
-The next method is the getQueue() method. This method will unravel the queue and return it in its entirety. For this, an index called 'pointer' is used. The pointer is set to equal the head. Then the element in the queue at location 'pointer' is appended to the 'data' variable which is used as the output. The code then checks if pointer is equal to tail. If so, then that was the last element in the queue, so break the while loop. Finally, return the data variable.
+The next method is the getQueue() method. This method unravels the queue and returns it in its entirety. For this, an index called 'pointer' is used. The pointer is set to equal the head. Then the element in the queue at location 'pointer' is appended to the 'data' variable, which is used as the output. The code then checks if pointer is equal to tail. If so, then the last element has beed taken from the queue, so break the while loop. Finally, return the data variable.
 
 The last method in the CircularQueue class is the printQueue() method. This method is mainly used to test the other two methods. The printQueue() method simply loops through the queue from index 0 until the end and prints the value. 
 
@@ -370,11 +370,13 @@ Next, the getQueue() method is called. This should return the contents of the qu
 4 5 2 3
 [2, 3, 4, 5]
 ```
-This is exactly what I was looking for. The queue fills up thenstarts overwriting previous values. In addition, when the getQueue method is used, the result is returned in the correct order. Great. Queue, finished. 
+This is exactly what I was looking for. The queue fills up then starts overwriting previous values. In addition, when the getQueue() method is used, the result is returned in the correct order. Great. Queue, finished. 
 
 ## Putting it all together
 
-I had figured out how to run the YOLO model to identify the person withing the frame. I had also inspected the feature extraction section of the code and come up with a plan to speed it up. Now it was time to put it all together. 
+I had figured out how to run the YOLO model to identify the person withing the frame. I had also inspected the feature extraction section of the code and come up with a plan to speed it up. The circular queue was written to handle the collection of new video frames. Now it was time to put it all together. 
+
+The code I will go through in this section is available in the 
 
 
 
