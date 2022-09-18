@@ -1,21 +1,10 @@
 # This script is to open the videos, crop them then save in a folder with the label name.
 # This is done to restructure the dataset and allow for video ganerators with data augmentation to tbe used
 
-
-from ntpath import join
-import numpy as np
-import pandas as pd
-import seaborn as sns
-import tensorflow as tf
-import matplotlib.pyplot as plt
 import cv2
-import utils
 import os
 import json
-from keras import layers
-from sklearn.model_selection import train_test_split
-from pathlib import Path
-
+import pandas as pd
 
 DATASET_PATH = "data/"
 
@@ -33,7 +22,7 @@ box_location_x1y1x2y2 = []  # stores the box made by yolov3 to identify person
 frame_start = []
 frame_end = []
 
-num_classes = 30
+num_classes = 10
 
 # loop through the first 100 glosses
 for ent in content[:num_classes]:
@@ -119,7 +108,7 @@ def load_video(
 
 
 # Main loop
-# loop through all uniqu video labels
+# loop through all unique video labels
 # Create a folder with using the label name
 # for each video with that label
 # Open, crop, resize the video
@@ -153,7 +142,7 @@ def process_and_save_video(df_row):
     curent_directory = os.getcwd()
 
     # Check if the destination folder apready exists
-    new_folder_path = os.path.join(curent_directory, "data_folders2", label)
+    new_folder_path = os.path.join(curent_directory, "data_folders", label)
     try:
         os.mkdir(new_folder_path)
     except:
@@ -161,7 +150,7 @@ def process_and_save_video(df_row):
 
     # get the video file name
     video_file = os.path.basename(video_path)  # get the video name
-    
+
     # join the file name to the new save path
     new_save_path = os.path.join(new_folder_path, video_file)
     print(f"Saving: {new_save_path}")

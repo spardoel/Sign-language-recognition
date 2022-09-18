@@ -2,7 +2,7 @@ import cv2
 import torch
 import numpy as np
 import json
-from utils import CircularQueue
+from utilities.circularqueue import CircularQueue
 from keras.models import model_from_json
 import keras
 from keras import applications
@@ -59,7 +59,7 @@ img_size = 350
 q = CircularQueue(50)
 
 model_weights_file = "model_weights_sug.h5"
-model_json_file = "model_aug.json"
+model_json_file = "model_aug copy.json"
 
 # load model from JSON file
 with open(model_json_file, "r") as json_file:
@@ -137,7 +137,7 @@ def prepare_videos(frames):
     MAX_SEQ_LENGTH = 50
     num_samples = 1
 
-    frames = frames[None, ...]
+    # frames = frames[None, ...]
 
     # initialize the mask and feature arrays
     frame_masks = np.zeros(shape=(num_samples, MAX_SEQ_LENGTH), dtype="bool")
@@ -146,7 +146,7 @@ def prepare_videos(frames):
     )
 
     # Initialize placeholders to store the masks and features of the current video.
-    temp_frame_mask = np.zeros(
+    temp_frame_mask = np.ones(
         shape=(
             1,
             MAX_SEQ_LENGTH,
@@ -157,13 +157,15 @@ def prepare_videos(frames):
         shape=(1, MAX_SEQ_LENGTH, NUM_FEATURES), dtype="float32"
     )
 
+    temp_frame_features[0, :, :] = feature_extractor.predict(frames)
+
     # Extract features from the frames of the current video.
-    for i, batch in enumerate(frames):
-        video_length = batch.shape[0]
-        length = min(MAX_SEQ_LENGTH, video_length)
-        for j in range(length):
-            temp_frame_features[i, j, :] = feature_extractor.predict(batch[None, j, :])
-        temp_frame_mask[i, :length] = 1  # 1 = not masked, 0 = masked
+    # for i, batch in enumerate(frames):
+    #     video_length = batch.shape[0]
+    #     length = min(MAX_SEQ_LENGTH, video_length)
+    #     for j in range(length):
+    #         temp_frame_features[i, j, :] = feature_extractor.predict(batch[None, j, :])
+    #     temp_frame_mask[i, :length] = 1  # 1 = not masked, 0 = masked
 
     frame_features = temp_frame_features.squeeze()
     frame_masks = temp_frame_mask.squeeze()
