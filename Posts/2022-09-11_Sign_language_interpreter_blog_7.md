@@ -3,6 +3,7 @@
 In the previous post I talked about training the first version of the sign language video classifier. In short, the model was useless. 
 But I have a confession to make. I didn't thoroughly inspect the data before starting. I know, I know, but let me explain. Since the videos were not labeled and I don't know sign language, I would have had to code something (oh, the horror!) to associate each video with the correct label and output them in a format I could understand. 
 I thought that perhaps this was unecessary, and to be honest I was excited to dive into model development. Evidently I should have taken the time to check the dataset. So, to make up for my previous impatience, this post will go over the dataset checking and reorganization that I was forced to do prior to trying to develop another model. 
+The code for this post is "Code files/save_videos_in_class_folders.py"
 
 ## Save videos in separate class folders
 
@@ -59,14 +60,14 @@ def process_and_save_video(df_row):
 df.apply(process_and_save_video, "columns")
 
 ```
-The process_and_save_video() function loads each video (and crops and resizes it as before), then the video name and the label are used to create a new save path for the video. 
-The video is then saved. This frunction is applied to every row in the dataset. In this case the first part of the code that loaded the available vidoes limited the number of classes to include. 
+The process_and_save_video() function loads each video (and crops and resizes it just like in the previous code), then the video name and the label are used to create a new save path for the video. 
+The video is then saved. This function is applied to every row in the dataset. 
 
 ## Inspecting the reorganized dataset
 
 After running the code for the first 10 classes, the new data subset looked like this. 
 ![dataset re-organization](https://user-images.githubusercontent.com/102377660/189546034-c0e7faf3-fac8-497c-b6ad-e87be964bfc3.JPG)
-As you can see there is a folder for each class. Inside each folder there are the videos corresponding to that sign, with their original names.
+As you can see there is a folder for each class. Inside each folder there are the videos corresponding to that sign. The videos still have their original names but are now grouped by class.
 Here is an example. 
 ![dataset re-organization computer](https://user-images.githubusercontent.com/102377660/189546096-b1c34fa7-bc50-4e60-911c-abe04d102022.JPG)
 The keen eyed among you may notice something odd about these videos. Specifically, look at the first frames of videos 12326 - 12328. Now, I don't know sign language, but to me those videos appear to be completely different movements. 
@@ -82,15 +83,15 @@ https://user-images.githubusercontent.com/102377660/189546232-c36cb543-48fa-4470
 https://user-images.githubusercontent.com/102377660/189546233-32b6f732-b794-41b6-b25f-63c3393a4589.mov
 
 
-Now, call me crazy, but those appear to be completely different. Atfer a quick google search I learned that these are all valid variations. 
-All of these signs mean 'Computer' and they are used more or less commonly in different places. That was a very interesting discovery. 
-It goes a long way toward explaining why the model was so poor. We were telling the model that these were the same word, and yet they are very different movements. 
+Now, call me crazy, but those appear to be completely different. Atfer a quick google search, I learned that these are all valid variations. 
+All of these signs mean 'Computer' and are used more or less commonly in different places. That was a very interesting discovery. 
+It goes a long way toward explaining why the model was so poor. I was telling the model that these were the same word, and yet they are very different movements. Not only that, the fact that there are different movements means that each movement only has a few videos of each. 
 To give the model the best chance of success, I went through the first 10 classes and removed different versions so that each class had a single sign. 
-According to my brief search, video number 12326 which shows a C-shaped hand brushing past the opposite forearm is the more common version. So all the videos showing this sign were saved and the others were deleted. 
+According to my brief search, video number 12326 which shows a C-shaped hand brushing past the opposite forearm is the more common version of 'computer'. So all the videos showing this sign were saved and the others were deleted. The same thing was done for other classes that had multiple variations.
 
 ### Removing possibly confusing signs
 
-As the section title suggests, I also removed versions of signs that were technically correct but potentially confusing for the model. 
+As the section title suggests, I also removed versions of signs that were technically correct, but potentially confusing for the model. 
 Here is an example. All of these signs are 'Drink'.
 
 
@@ -113,20 +114,22 @@ To help the model, I removed this video and others with similar variation.
 
 Now, if you recall the spectacularly terrible training of the video classification model, the validation loss was not decreasing as it should. 
 The increasing validation loss is a bad sign and could indicate that more training data is required. 
-Since I had just deleted all the ambiguous videos thus further reducing the size of the dataset, I turned to data augmentation to help compensate.
+To make matter worse, I had just deleted all the ambiguous videos, thus further reducing the size of the dataset. To help compensate for a small amount of training data, I turned to data augmentation.
 
 Data augmentation refers to the process of making copies of existing data samples but altering them in some way to artificially produce more 'new' data samples.
-For the data augmentaion I used the Vidaug library from github (https://github.com/okankop/vidaug). The repository home page does a good job illustrating the different augmentation appraoches included in the library. 
+For the data augmentaion, I used the Vidaug library from github (https://github.com/okankop/vidaug). The repository home page does a good job illustrating the different augmentation appraoches included in the library. 
 
-For my data augmentation I wrote some new code. First, some imports 
+The data augmentation code can be found in ""
+
+For my data augmentation I wrote some new code. The  First, some imports
+
 ```
-import numpy as np
+
 import cv2
 import os
 import random
-
+import numpy as np
 from PIL import Image
-
 from vidaug import augmentors as va
 ```
 Notice that the video augmentation library is imported as va.
@@ -180,7 +183,7 @@ def load_video(video_path):
         cap.release()
     return frames
 ```
-First the video path is used to create an OpenCV video capture object. Then each frame is converted to a PIL image format and appended to a list of frames. 
+First, the video path is used to create an OpenCV video capture object. Then, each frame is converted to a PIL image format and appended to a list of frames. 
 The video augmentation library works best with PIL formats. I tried to use numpy array format but the resulting video was garbled when performaing certain tranformations. 
 
 Moving on to the function that generates the new save path for the transformed videos. 
@@ -267,6 +270,7 @@ for class_folder in dataset_path:
 
 ```
 For each folder in the dataset directory, the list of available videos is generated using os.listdir(). Each video is loaded in turn, and for each video, each transformation is applied. This created multiple transformed copies of each video. After the transformation, the video is saved. 
+
 Here is an example of the output videos. 
 First the original video. 
 
@@ -299,5 +303,5 @@ https://user-images.githubusercontent.com/102377660/189548854-a5cb64ec-fc33-4a97
 
 
 ## Wrap up
-With the newly generated videos I had more data to work with. It was time to take another crack at classification. 
+With the newly generated videos, I had more data to work with. It was time to take another crack at classification. 
 But first a few minor changes needed to be made in order to accept the new video inputs... 
