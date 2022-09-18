@@ -276,7 +276,7 @@ class CircularQueue:
         self.head = self.tail = -1
 
     # Insert an element into the circular queue
-    def enQueue(self, data):
+    def enqueue(self, data):
 
         # if this is the first entry
         if self.head == -1:
@@ -293,7 +293,7 @@ class CircularQueue:
                 self.head = (self.head + 1) % self.max_size
 
     # Get the contents of the entire queue
-    def getQueue(self):
+    def get_queue(self):
     # create the output variable
         data = []
         if self.head == -1:
@@ -328,7 +328,7 @@ To write the circular queue, I created a new class with a few relatively simple 
 
 The next method is called enqueue(). This method adds a new sample to the end of the queue, or, if the queue is full, it overwrites the oldest sample. First, this method checks if the head is -1. If yes, then this is the first element being added to the queue, set the head and tail to 0 and add the element to the queue. If this is not the first element being added, then increment the tail and add the element to the end of the queue. Notice that the tail is incremented using the modulo operator. This is the key to the function of a circular queue. The modulo operator returns the remainder of a division. So, 2 % 5 returns 2 because 5 goes into 2 zero times with a remainder of 2. Crucially, 5 % 5 returns 0 since 5 goes into 5 once with no remainder. This means that incrementing the index then dividing by the maximum length of the queue will increment the index normally until the end of the quue is reached, at which point the index qill be reset to 0. This way, the index starts over and loops through the queue again. Hence the name 'Circular' queue. Right, back to the code. After the tail is incremented and the data is saved to the queue, the tail is compared to the head. If they are the same, the queue index has wrapped around and is overwiting the previous head value. In this case, increment the head to stay ahead of the tail (the head stays ahead of the tail, get it? A-Head? I'm sorry, moving on). 
 
-The next method is the getQueue() method. This method unravels the queue and returns it in its entirety. For this, an index called 'pointer' is used. The pointer is set to equal the head. Then the element in the queue at location 'pointer' is appended to the 'data' variable, which is used as the output. The code then checks if pointer is equal to tail. If so, then the last element has beed taken from the queue, so break the while loop. Finally, return the data variable.
+The next method is the get_queue() method. This method unravels the queue and returns it in its entirety. For this, an index called 'pointer' is used. The pointer is set to equal the head. Then the element in the queue at location 'pointer' is appended to the 'data' variable, which is used as the output. The code then checks if pointer is equal to tail. If so, then the last element has beed taken from the queue, so break the while loop. Finally, return the data variable.
 
 The last method in the CircularQueue class is the printQueue() method. This method is mainly used to test the other two methods. The printQueue() method simply loops through the queue from index 0 until the end and prints the value. 
 
@@ -336,29 +336,29 @@ To test the queue, I ran the following code.
 ```
 q = CircularQueue(4)
 
-q.enQueue(0)
-q.printQueue()
-q.enQueue(1)
-q.printQueue()
-q.enQueue(2)
-q.printQueue()
-q.enQueue(3)
+q.enqueue(0)
+q.print_queue()
+q.enqueue(1)
+q.printq_ueue()
+q.enqueue(2)
+q.print_queue()
+q.enqueue(3)
+q.print_queue()
+
+q.enqueue(4)
+q.print_queue()
+
+print(q.get_queue())
+
+q.enqueue(5)
 q.printQueue()
 
-q.enQueue(4)
-q.printQueue()
-
-print(q.getQueue())
-
-q.enQueue(5)
-q.printQueue()
-
-print(q.getQueue())
+print(q.get_queue())
 ```
 First, the CircularQueue is instantiated as q and the maximum length is set to 4. 
 Then 4 values (0,1,2,3) are added to the queue, the contents of the queue are printed each time. Then, a fifth value is added to the queue. This value should overwrite the first element in the queue. 
 
-Next, the getQueue() method is called. This should return the contents of the queue in the order we provided. So in this case the getQueue method should return [1,2,3,4]. Next, another value is added to the queue, this one should overwrite the next element in the queue. I think you get the picture. When the code is run, this is the output. 
+Next, the get_queue() method is called. This should return the contents of the queue in the order we provided. So in this case the get_queue method should return [1,2,3,4]. Next, another value is added to the queue, this one should overwrite the next element in the queue. I think you get the picture. When the code is run, this is the output. 
 
 ```
 0 
@@ -370,13 +370,238 @@ Next, the getQueue() method is called. This should return the contents of the qu
 4 5 2 3
 [2, 3, 4, 5]
 ```
-This is exactly what I was looking for. The queue fills up then starts overwriting previous values. In addition, when the getQueue() method is used, the result is returned in the correct order. Great. Queue, finished. 
+This is exactly what I was looking for. The queue fills up then starts overwriting previous values. In addition, when the get_queue() method is used, the result is returned in the correct order. Great. Queue, finished. 
 
 ## Putting it all together
 
 I had figured out how to run the YOLO model to identify the person withing the frame. I had also inspected the feature extraction section of the code and come up with a plan to speed it up. The circular queue was written to handle the collection of new video frames. Now it was time to put it all together. 
 
-The code I will go through in this section is available in the 
+The code I will go through in this section is available in "run_sign_language_word_detector.py".
 
+Alright, as a broad overview, there are 3 main sections to this code. 
+1. The VideoCamera() class that fetches and processes frames of video. 
+2. The build_feature_extractor() function which creates and returns the feature extraction model. 
+3. The main() function which contains the main loop and calls the other functions. 
+
+As a quick note, I didn't spend much time thinking about the program architecture and where to place functions. This was just a test script and not the final program. So if you find yourself asking 'Why isn't that code in its own class?' or 'Wouldn't it make more sense to move that function into a method?' you are probably right. I'll look at all those things later, for now I was only interested in getting the code to run to test the basic functionality. 
+
+### Some basic setup
+
+Before jumping into the code, there were a few things to setup. 
+
+```
+import cv2
+import torch
+import numpy as np
+import json
+from utilities.circular_queue import CircularQueue
+
+from keras.models import model_from_json
+import keras
+from keras import applications
+
+CLASS_LIST = [
+    "before",
+    "book",
+    "candy",
+    "chair",
+    "clothes",
+    "computer",
+    "cousin",
+    "drink",
+    "go",
+    "who",
+]
+
+
+# Model
+model = torch.hub.load("ultralytics/yolov5", "yolov5n")
+
+font = cv2.FONT_HERSHEY_SIMPLEX
+
+img_size = 350
+q = CircularQueue(50)
+
+model_weights_file = "model_weights_sug.h5"
+model_json_file = "model_aug copy.json"
+
+# load model from JSON file
+with open(model_json_file, "r") as json_file:
+    loaded_model_json = json_file.read()
+    loaded_model = model_from_json(loaded_model_json)
+    # load weights into the new model
+    loaded_model.load_weights(model_weights_file)
+    loaded_model.make_predict_function()
+
+```
+After the imports, the CLASS_LIST constant was created with the possible class labels. Then the YOLO model was loaded and the font used for printing the label to the screen is set. The Image size is set, and the queue is instantiated to hold 50 samples. Then, the previously trained classification model is loaded. 
+
+### The VideoCamera class
+
+This class had 4 methods, namely, the __init__() method, the __del__() method, the get_frame() method, and the process_clip() method. Here is the class. 
+```
+class VideoCamera(object):
+    def __init__(self):
+        self.video = cv2.VideoCapture(0)
+
+    def __del__(self):
+        self.video.release()  # returns camera frames along with bounding boxes and predictions
+
+    def get_frame(self):
+        _, fr = self.video.read()
+
+        # crop and resize the image before returning
+        results = model(fr)  # identify the person
+        
+        dataframe = results.pandas()  # convert to pandas dataframe
+        detected_objects = dataframe.xyxy[0].name
+        for idx, object in enumerate(detected_objects):
+            if object == "person":
+
+                x1 = round(dataframe.xyxy[0].xmin[idx])
+                y1 = round(dataframe.xyxy[0].ymin[idx])
+
+                x2 = round(dataframe.xyxy[0].xmax[idx])
+                y2 = round(dataframe.xyxy[0].ymax[idx])
+
+                sign_frame = fr[y1:y2, x1:x2]
+
+                sign_frame = cv2.resize(sign_frame, (350, 350))
+                cv2.rectangle(fr, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+        return sign_frame, fr
+
+
+    def process_clip(self, frames):
+
+        num_frames = len(frames)
+
+        # initialize the mask and feature arrays
+        frame_masks = np.ones(shape=(num_frames), dtype="bool")
+        frame_features = np.zeros(shape=(num_frames, NUM_FEATURES), dtype="float32")
+
+        frame_features = feature_extractor.predict(frames)
+
+        return (frame_features, frame_masks)
+
+```
+
+Starting with the __init__() method. This method simply instantiates the Open CV Video Capture object and sets it as the 'video' property. Next, the __del__() method releases the Video CApture object when the class is deleted. 
+
+The get_frame() method is a bit more interesting. It is very similar to the code used to test the YOLO object detector. The method gets the bext frame of video, uses the YOLO model to detect objects, and converts the results to a pandas dataframe. Then, the code loops through the detected objects looking for the 'person' label. When the person is found, the coordinates of the bounding box are extracted. the frame is cropped using the bounding box and saved as sign_frame. Now, at this point there are 2 video frames. The first is the original frame, this one will be used to show the bounding box and the classification label to the user. The other frame (i.e., sign_frame) is the cropped frame and is used to classification. This frame is never shown to the user. 
+Ok, so there are 2 frames. Moving on. The sign_frame is then resized to 350 by 350. Meanwhile, the rectangle demonstrating the bounding box is drawn on the original frame. This method ends with both the original and the sign_frame being returned.
+
+Finally there is the process_clip() method. This method accepts a clip of 50 frames and performs the feature extraction. First the length of the clip is determined and saved as the nim_frames. Then the feature and mask variables are created. Note that the mask variable is created as ones and never changed. As I mentioned previously, the masks are not really needed anymore since the clips are all the same length. The frames are then passed to the feature extractor. Then the method returns the features and the masks, that's it. 
+
+### The build_feature_extractor function
+
+This function is pretty straight forward and hasn't changed since the previous versions of the code. Here it is. 
+```
+IMG_SIZE = 350
+NUM_FEATURES = 1280
+
+# build feature extractor
+def build_feature_extractor():
+    feature_extractor = keras.applications.EfficientNetB0(
+        weights="imagenet",
+        include_top=False,
+        pooling="avg",
+        input_shape=(IMG_SIZE, IMG_SIZE, 3),
+    )
+
+    preprocess_input = keras.applications.efficientnet.preprocess_input
+
+    inputs = keras.Input((IMG_SIZE, IMG_SIZE, 3))
+    preprocessed = preprocess_input(inputs)
+
+    outputs = feature_extractor(preprocessed)
+    return keras.Model(inputs, outputs, name="feature_extractor")
+```
+The size of the images and the number of features are set as constants. Then the Efficient Net is loaded. The input and output chapes are defined and the keras model is created. Like I said, nothing new here. 
+
+### The main function
+
+Alright, the main function for this test script mainly consists of a while loop. The loop gets the next frame from the camera, loads it into the queue and checks a condition. If the condition is true, pause the loop and classify the frames currently in the buffer. Here is the code.
+```
+def main(camera):
+   
+    predicted_sign = "Nothing"
+    while True:
+        sign_frame, frame = camera.get_frame()
+
+        q.enqueue(sign_frame)
+
+        if q.tail == 49:
+        
+            clip = q.get_queue()
+            frame_features, frame_mask = camera.process_clip(np.asarray(clip))
+
+            frame_mask2 = frame_mask[np.newaxis, :]
+            frame_features2 = frame_features[np.newaxis, :, :]
+            pred = loaded_model.predict([frame_features2, frame_mask2])[0]
+
+            predicted_sign = CLASS_LIST[np.argmax(pred)]
+            print(predicted_sign)
+
+        cv2.putText(frame,predicted_sign,(25, 25),font,1,(255, 255, 0),2)
+        cv2.imshow("Sign language recognition", frame)
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
+
+feature_extractor = build_feature_extractor()
+main(VideoCamera())
+```
+Ok, the main function accepts the VideoCamera object. Then the prediction result is initially set to 'nothing'. Then the main loop starts. 
+The loop gets the next frame and gives it to the queue (q is the instance of the Circular Queue). Then, check the position of the dueue tail. If the tail is 49, then the queue is full (because the queue was created to hold 50 frames). When this condition is true, the clip contained in the queue is processed. First the video clip is extracted from the q using get_queue(). The clip is then processed to extract the features and masks. The masks and features are modified to add another dimension. This is to match the expected input for the model. The clip is then classified. The prediction is used as an index to get the appropriate label in the CLASS_LIST constant. This prediction is then printed to the frame and shown to the user. 
+
+## Running the code
+
+Time to run the code! How exciting. I ran the code, and started signing the words in CLASS_LIST. Here is an example.
+
+
+https://user-images.githubusercontent.com/102377660/190913677-4aa13a54-15da-40bd-9680-6ef6fcd0bacb.mp4
+
+Awesome! It worked. You may have noticed that the video freezes for a split second just before the guessed label in the top left corner is updated. This freezing corresponds to the code classifying the video clip. After the freeze, the code then runs until it has collected 50 new frames, which are then classified, and the label in the top left is updated. 
+
+In the video I signed, 'Chair', 'Clothes', 'Cousin', 'Drink', and 'Go'. The model classified all of them correctly! The reason I signed those 5 words and not the other 5 is because the words shown in the clip are the only ones that the model could reliably classify. In fact the model was completely unable to classify some words. For instance, when I signed 'Candy' the model always guessed 'Cousin', and when I signed 'Who' the model always guessed 'Drink'. These mistakes were not all that surprising to me. I'll show you a few videos and hopefully you'll see why the model is struggling. 
+
+Here is the sign for 'Candy'.
+
+
+https://user-images.githubusercontent.com/102377660/190914073-ee271392-6f74-4f8f-be2f-3c8fd3e1ef1f.mp4
+
+
+And here is the sign for 'Cousin'
+
+
+
+https://user-images.githubusercontent.com/102377660/190914109-231bb6ca-681f-48ff-9240-37cea7282e9e.mp4
+
+To you or I the signs are clearly different. But they are similar enough to confuse the model. I think it may have to do with the positioning of the hand next to the head. I'm not sure, but this seems like a forgiveable mistake. Let's look at a few more videos. 
+
+Here is the sign for 'Who'
+
+
+https://user-images.githubusercontent.com/102377660/190914198-3ef8120f-b0ff-4472-82a0-a0cc57450716.mp4
+
+And here is the sign for 'Drink'
+
+
+
+https://user-images.githubusercontent.com/102377660/190914218-6919d5a9-bcdc-41e9-8dcb-6d63bf93ca37.mp4
+
+These signs are even more similar than 'Candy' and 'Cousin'. Both signs have the hand coming in front of the mouth with the fingers slighlty curled. Seeing these signs side by side, it is understandable that the model had trouble distinguishing between the two. 
+
+Another thing I noticed was that 'drink' was sometimes mistakenly labeled as 'cousin'. This is also pretty understandable. Both signs have the hand in a 'C' shape and involve moving the hand near the face. After experimenting a little, I figured out that tilting my head back when signing 'drink' made the classification much more reliable. Phrased another way, accentuating a feature unique to the sign 'drink' helped the model identify the sign. 
+
+## Wrap up
+
+The test was a success! Well, mostly. The model could reliably identify 50% of the signs. I am pretty pleased with that result. Also, the test was perfomed in near real-time! Yes, there was a slight lag when a clip was being processed, but not bad at all.
+
+The next steps were to expand the model vocabulary and try to improve classification accuracy. Expanding the model vocabulary would involve adding more videos with different labels. Additional training videos should help the model learn, but adding more classes also makes the classification more challenging. It will be interesting to see what happens. 
+
+There were also some smaller tweaks I could make to improve the model speed and accuracy. I could improve the speed by using fewer features or a lighter feature extraction model. Or by buying a better computer (this is an expensive option). There were also a few things I could do to improve the model performance. For instance, I could remove background obstacles to see if that helps, or I could record myself signing and add those videos to the training set. So I had a few options and things to play with. But more on that in the next post. Thanks for reading!
 
 
