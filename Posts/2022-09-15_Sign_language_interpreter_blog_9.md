@@ -565,7 +565,7 @@ https://user-images.githubusercontent.com/102377660/190913677-4aa13a54-15da-40bd
 
 Awesome! It worked. You may have noticed that the video freezes for a split second just before the guessed label in the top left corner is updated. This freezing corresponds to the code classifying the video clip. After the freeze, the code then runs until it has collected 50 new frames, which are then classified, and the label in the top left is updated. 
 
-In the video I signed, 'Chair', 'Clothes', 'Cousin', 'Drink', and 'Go'. The model classified all of them correctly! The reason I signed those 5 words and not the other 5 is because the words shown in the clip are the only ones that the model could reliably classify. In fact the model was completely unable to classify some words. For instance, when I signed 'Candy' the model always guessed 'Cousin', and when I signed 'Who' the model always guessed 'Drink'. These mistakes were not all that surprising to me. I'll show you a few videos and hopefully you'll see why the model is struggling. 
+In the video, when I wasn't looking down to check my notes, I signed 'Chair', 'Clothes', 'Cousin', 'Drink', and 'Go'. The model classified all of them correctly! The reason I signed those 5 words and not the other 5 is because the words shown in the clip are the only ones that the model could reliably classify. In fact the model was completely unable to classify some words. For instance, when I signed 'Candy' the model always guessed 'Cousin', and when I signed 'Who' the model always guessed 'Drink'. These mistakes were not all that surprising to me. I'll show you a few videos and hopefully you'll see why the model is struggling. 
 
 Here is the sign for 'Candy'.
 
