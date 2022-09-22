@@ -570,27 +570,42 @@ In the video, when I wasn't looking down to check my notes, I signed 'Chair', 'C
 Here is the sign for 'Candy'.
 
 
-https://user-images.githubusercontent.com/102377660/190914073-ee271392-6f74-4f8f-be2f-3c8fd3e1ef1f.mp4
+
+
+https://user-images.githubusercontent.com/102377660/191854346-2ee5d5c2-7200-4ef2-89b3-ad19d5c43860.mov
+
 
 
 And here is the sign for 'Cousin'
 
 
 
-https://user-images.githubusercontent.com/102377660/190914109-231bb6ca-681f-48ff-9240-37cea7282e9e.mp4
+
+https://user-images.githubusercontent.com/102377660/191854362-5b69395d-861e-4250-a1b6-d2bc91b87b82.mov
+
+
 
 To you or I the signs are clearly different. But they are similar enough to confuse the model. I think it may have to do with the positioning of the hand next to the head. I'm not sure, but this seems like a forgiveable mistake. Let's look at a few more videos. 
 
 Here is the sign for 'Who'
 
 
-https://user-images.githubusercontent.com/102377660/190914198-3ef8120f-b0ff-4472-82a0-a0cc57450716.mp4
+
+
+https://user-images.githubusercontent.com/102377660/191854388-bb0aeb58-0f60-4c43-a362-5c6bcfc6e2b7.mov
+
+
+
 
 And here is the sign for 'Drink'
 
 
 
-https://user-images.githubusercontent.com/102377660/190914218-6919d5a9-bcdc-41e9-8dcb-6d63bf93ca37.mp4
+
+https://user-images.githubusercontent.com/102377660/191853576-f5565160-dc01-4ae4-8ff7-9c6b66db3ff9.mov
+
+
+
 
 These signs are even more similar than 'Candy' and 'Cousin'. Both signs have the hand coming in front of the mouth with the fingers slighlty curled. Seeing these signs side by side, it is understandable that the model had trouble distinguishing between the two. 
 
