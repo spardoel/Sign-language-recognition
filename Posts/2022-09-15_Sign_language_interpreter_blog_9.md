@@ -28,7 +28,7 @@ There were many details to figure out, but for now, let's jump in. I'll explain 
 
 I won't go into the theory behind YOLO models, but in essence, it is a simplification of previous multi-step object detection approaches. The dataset used YOLOV3 to identify the person within the frame, so that the video could be cropped to include only the person. Since I wanted to match the training data as much as possible, I logically looked into the YOLOV3 model. 
 
-I downloaded a pre-trained model and started experimenting with object detection. I could pass an image to the YOLO model, and the model would show me the image with all the distinct objects nicely encircled. Weel, encircled with rectangles that is. So I guess the objects were en-regtangled? I don't know, but it was great, exactly what I needed. But then, I noticed that YOLOV3 was not the most recent version. In fact, there was a YOLOV5 available. As we all know, newer is always better. So I traded in for the newer model. 
+I downloaded a pre-trained model and started experimenting with object detection. I could pass an image to the YOLO model, and the model would show me the image with all the distinct objects nicely encircled. Well, encircled with rectangles that is. So I guess the objects were en-regtangled? I don't know, but it was great, exactly what I needed. But then, I noticed that YOLOV3 was not the most recent version. In fact, there was a YOLOV5 available. As we all know, newer is always better. So I traded in for the newer model. 
 
 The shinny new model that caught my eye was provided by the good people at Ultralytics. Here is a link to their YOLOV5 github page https://github.com/ultralytics/yolov5.
 
@@ -49,7 +49,7 @@ results.print()
 
 results.show()
 ```
-After importing pytorch, the model is loaded. Then the path to an image is provided. In this case I used the a random stock image of a generic office.
+After importing pytorch, the model is loaded. Then the path to an image is provided. In this case I used a random stock image of a generic office.
 The image is passed to the model, then displayed. Pretty easy right? Here is the output. 
 
 ![YOLOv5_example_image](https://user-images.githubusercontent.com/102377660/190526428-f3e7b62b-d64f-4ae8-aaf4-370766be7f55.jpg)
@@ -60,14 +60,14 @@ Great, so I had a way to find the person within the frame. Next, I needed to be 
 
 This part proved to be tricky. 
 
-As it turned out, the 'results' variable returned by the YOLO model was somewhat complicated. I am not sure what I was expecting, but a property named 'predicted_classes' and 'bounding_boxes' would have been nice. 
+As it turned out, the 'results' variable returned by the YOLO model was somewhat complicated. I am not sure what I was expecting, but properties named 'predicted_classes' and 'bounding_boxes' would have been nice. 
 Alas, that was not the case. Here is a picture of the 'results' variable paused in the VS Code debugger. 
 
 ![results from yolov5](https://user-images.githubusercontent.com/102377660/190527055-7b0a7b3e-fc86-41a4-b28e-a4ccc29ba9c8.JPG)
 
-Having never used this model before, I didn't really know what I was looking at or how to get the information I wanted. I immediately saw the 'names' property but since there were no bicycles or trucks in this image I assume that is the dictionary of all the object the model is capable of detecting and not the names of the objects in this particular image. There were some values labeled 's' and 't' and a few tensors labeled with a bunch of X's and Y's.
+Having never used this model before, I didn't really know what I was looking at or how to get the information I wanted. I immediately saw the 'names' property but since there were no bicycles or trucks in this image I assume that is the dictionary of all the objects the model is capable of detecting and not the names of the objects in this particular image. There were some values labeled 's' and 't' and a few tensors labeled with a bunch of X's and Y's.
 
-So what to do? Well, I had just used the results.print() and results.show() methods to display the image with the bounding boxes and labels. So those methods must be accessing the information I needed. If I could take a look at the code behind those functions I could use the same steps to access the data for my own nefarious purposes. So I hopped off to github to checked the source code for those methods. 
+So what to do? Well, I had just used the results.print() and results.show() methods to display the image with the bounding boxes and labels. So those methods must be accessing the information I needed. If I could take a look at the code behind those functions I could use the same steps to access the data for my own nefarious purposes. So I hopped off to github to check the source code for those methods. 
 
 To be honest, it took longer than I had hoped. But eventually I found something useful. 
 In the "utils" folder I found some of the code I was looking for, take a look. 
@@ -119,7 +119,7 @@ Which produced this output.
 7  459.049164  236.212570  520.255920  407.262390    0.366459     56   chair]
 ```
 Hey! Now I was getting somewhere. After converting the results to a dataframe, and selecting the coordinate representation I wanted (xyxy) I could access the list of detections. 
-Each detection had the X,Y coordinates of the bounding box as well as the class name. They were even sorted according to the model's confidence value. Perfect, I can work with that. 
+Each detection had the X,Y coordinates of the bounding box as well as the class name. They were even sorted according to the model's confidence value. Perfect, I could work with that. 
 
 I will talk a bit more about exactly how I implemented the YOLO model later on. For now, I want to talk about the different versions of the model that I had to choose from. 
 
@@ -132,7 +132,7 @@ I didn't care if the bounding box was slightly too big or slightly too small and
 
 ## Running the YOLO model in real time
 
-After selecting the YOLO model I wanted to test it with the live video feed from my webcam. 
+After selecting the YOLO model, I wanted to test it with the live video feed from my webcam. 
 Here is the test code I wrote. This code is available in "Code files/webcam_YOLO5_person_detection.py"
 
 ```
@@ -203,7 +203,7 @@ def gen(camera):
 # run the main function and pass in the camera object
 gen(VideoCamera())
 ```
-After the imports, the YOLO5-nano model is loaded. The font to be used when writing text on the video frames is set. Next, the VideoCamera class is defined. The __init__ method creates the video capture object. The __del__ method releases the object when the class is deleted. Next, the get_frame() method. This method reads the next frame from the video capture object. The frame is passed to the YOLO5 model and the results are converted to a pandas dataframe. Then the list (pandas Series technically) of detected objects is extracted. This step was not strickly necessary, but I think it makes the code a bit easier to understand. The code then loops through each of the detected objects. If the detected object is a 'person' then the label (i.e., 'person') is written in the top left hand corner of the frame.  Next, the coordinates of the bounding box are extracted and rounded. It was not strictly necessary to create the (x1,y1), and (x2,y2) intermediate variables, but I think it helps make the code easier to understand. After generating the coordinates, the bounding box was drawn on the frame and the frame was returned. Next, the main() method is created. This method requests the next frame, displays the processed frame, and checks for an exit condition. That's it. 
+After the imports, the YOLO5-nano model is loaded. The font to be used when writing text on the video frames is set. Next, the VideoCamera class is defined. The __init__() method creates the video capture object. The __del__() method releases the object when the class is deleted. Next, let's talk about the get_frame() method. This method reads the next frame from the video capture object. The frame is passed to the YOLO5 model and the results are converted to a pandas dataframe. Then the list (pandas Series technically) of detected objects is extracted. This step was not strickly necessary, but I think it makes the code a bit easier to understand. The code then loops through each of the detected objects. If the detected object is a 'person' then the label (i.e., 'person') is written in the top left hand corner of the frame.  Next, the coordinates of the bounding box are extracted and rounded. It was not strictly necessary to create the (x1,y1), and (x2,y2) intermediate variables, but I think it helps make the code easier to understand. After generating the coordinates, the bounding box was drawn on the frame and the frame was returned. Next, the main() method is created. This method requests the next frame, displays the processed frame, and checks for an exit condition. That's it. 
 
 Ok, so what happens when the code is run? Well, this happens.
 
@@ -213,7 +213,7 @@ https://user-images.githubusercontent.com/102377660/190858607-c3f0eb33-f8fd-4d3d
 
 As you can see, the YOLO model identifies me in the frame and the bounding box is drawn. The bounding box follows me as I move around in the frame. Perfect. 
 
-With the basic testing of the YOLO model, the 'Identify the person in the frame' part of the program was solved. 
+With the basic testing of the YOLO model done, the 'Identify the person in the frame' part of the program was solved. 
 
 ## Feature extraction
 
@@ -258,7 +258,7 @@ This is the part of the code that actually performs the feature extraction. I ra
 
 Inside the loop, the length of the video was extracted, this is the number of frames in the clip. Then the length of the video is compared to the pre-set maximum length of 50, and the smaller of the two is saved as 'length'. Now the code loops through each of the frames in the clip. The features are saved for each frame. Then, the masks variable is populated with ones where frames were available. Importantly, the variables used to store the features and masks were created as arrays of zeros. This means that if the video clip does not have the maximum number of frames, the features and mask variables are padded with zeros. 
 
-This zero padding is needed to compensates for shorter videos. But in the case of real-time implementation, the zero padding is unecessary. When pulling frames from the camera, I can simply keep pulling frames until I reach the desired amount. In other words, I can ensure that the video is never shorter than 50 frames. No padding required. This means, I can simplify the feature extraction code and run it in efficient batches of 50 frames.
+This zero padding is needed to compensate for shorter videos. But in the case of real-time implementation, the zero padding is unecessary. When pulling frames from the camera, I can simply keep pulling frames until I reach the desired amount. In other words, I can ensure that the video is never shorter than 50 frames. No padding required. This means I can simplify the feature extraction code and run it in efficient batches of 50 frames.
 
 Speaking of batches, I needed a way to collect a desired number of video frames to pass to the feature extractor. Then I wanted to be able to get a few more frames and pass those to the feature extractor. Gather a streaming input to process in batches? Sounds a bit like a buffer don't you think?
 
@@ -326,7 +326,7 @@ class CircularQueue:
 ```
 To write the circular queue, I created a new class with a few relatively simple methods. The constructor method creates the class object and sets the size of the queue as 'max_size'. An empty list of that size is then created as self.queue. Next, the indexes indicating the position of the start and end of the queue are created as self.head and self.tail, and both are set to -1.
 
-The next method is called enqueue(). This method adds a new sample to the end of the queue, or, if the queue is full, it overwrites the oldest sample. First, this method checks if the head is -1. If yes, then this is the first element being added to the queue, set the head and tail to 0 and add the element to the queue. If this is not the first element being added, then increment the tail and add the element to the end of the queue. Notice that the tail is incremented using the modulo operator. This is the key to the function of a circular queue. The modulo operator returns the remainder of a division. So, 2 % 5 returns 2 because 5 goes into 2 zero times with a remainder of 2. Crucially, 5 % 5 returns 0 since 5 goes into 5 once with no remainder. This means that incrementing the index then dividing by the maximum length of the queue will increment the index normally until the end of the quue is reached, at which point the index qill be reset to 0. This way, the index starts over and loops through the queue again. Hence the name 'Circular' queue. Right, back to the code. After the tail is incremented and the data is saved to the queue, the tail is compared to the head. If they are the same, the queue index has wrapped around and is overwiting the previous head value. In this case, increment the head to stay ahead of the tail (the head stays ahead of the tail, get it? A-Head? I'm sorry, moving on). 
+The next method is called enqueue(). This method adds a new sample to the end of the queue, or, if the queue is full, it overwrites the oldest sample. First, this method checks if the head is -1. If yes, then this is the first element being added to the queue, set the head and tail to 0 and add the element to the queue. Otherwise, if this is not the first element being added, then increment the tail and add the element to the end of the queue. Notice that the tail is incremented using the modulo operator. This is the key to the function of a circular queue. The modulo operator returns the remainder of a division. So, 2 % 5 returns 2 because 5 goes into 2 zero times with a remainder of 2. Crucially, 5 % 5 returns 0 since 5 goes into 5 once with no remainder. This means that incrementing the index then dividing by the maximum length of the queue will increment the index normally until the end of the quue is reached, at which point the index will be reset to 0. This way, the index starts over and loops through the queue again. Hence the name 'Circular' queue. Right, back to the code. After the tail is incremented and the data is saved to the queue, the tail is compared to the head. If they are the same, the queue index has wrapped around and is overwiting the previous head value. In this case, increment the head to stay ahead of the tail (the head stays ahead of the tail, get it? A-Head? I'm sorry, moving on). 
 
 The next method is the get_queue() method. This method unravels the queue and returns it in its entirety. For this, an index called 'pointer' is used. The pointer is set to equal the head. Then the element in the queue at location 'pointer' is appended to the 'data' variable, which is used as the output. The code then checks if pointer is equal to tail. If so, then the last element has beed taken from the queue, so break the while loop. Finally, return the data variable.
 
@@ -370,11 +370,11 @@ Next, the get_queue() method is called. This should return the contents of the q
 4 5 2 3
 [2, 3, 4, 5]
 ```
-This is exactly what I was looking for. The queue fills up then starts overwriting previous values. In addition, when the get_queue() method is used, the result is returned in the correct order. Great. Queue, finished. 
+This is exactly what I was looking for. The queue fills up then starts overwriting previous values. In addition, when the get_queue() method is used, the result is returned in the correct order. Great. Queue finished. 
 
 ## Putting it all together
 
-I had figured out how to run the YOLO model to identify the person withing the frame. I had also inspected the feature extraction section of the code and come up with a plan to speed it up. The circular queue was written to handle the collection of new video frames. Now it was time to put it all together. 
+I had figured out how to run the YOLO model to identify the person withing the frame. I had also inspected the feature extraction section of the code and come up with a plan to speed it up. Lastly, a circular queue was written to handle the collection of new video frames. Now it was time to put it all together. 
 
 The code I will go through in this section is available in "run_sign_language_word_detector.py".
 
@@ -383,7 +383,7 @@ Alright, as a broad overview, there are 3 main sections to this code.
 2. The build_feature_extractor() function which creates and returns the feature extraction model. 
 3. The main() function which contains the main loop and calls the other functions. 
 
-As a quick note, I didn't spend much time thinking about the program architecture and where to place functions. This was just a test script and not the final program. So if you find yourself asking 'Why isn't that code in its own class?' or 'Wouldn't it make more sense to move that function into a method?' you are probably right. I'll look at all those things later, for now I was only interested in getting the code to run to test the basic functionality. 
+As a quick note, I didn't spend much time thinking about the program architecture and where to place functions. This was just a test script and not the final program. So if you find yourself asking 'Why isn't that code in its own class?' or 'Wouldn't it make more sense to move that function into a method?' you are probably right. I'll look at all those things later, for now, I was only interested in getting the code to run to test the basic functionality. 
 
 ### Some basic setup
 
@@ -486,12 +486,12 @@ class VideoCamera(object):
 
 ```
 
-Starting with the __init__() method. This method simply instantiates the Open CV Video Capture object and sets it as the 'video' property. Next, the __del__() method releases the Video CApture object when the class is deleted. 
+Starting with the __init__() method. This method simply instantiates the Open CV Video Capture object and sets it as the 'video' property. Next, the __del__() method releases the Video Capture object when the class is deleted. 
 
-The get_frame() method is a bit more interesting. It is very similar to the code used to test the YOLO object detector. The method gets the bext frame of video, uses the YOLO model to detect objects, and converts the results to a pandas dataframe. Then, the code loops through the detected objects looking for the 'person' label. When the person is found, the coordinates of the bounding box are extracted. the frame is cropped using the bounding box and saved as sign_frame. Now, at this point there are 2 video frames. The first is the original frame, this one will be used to show the bounding box and the classification label to the user. The other frame (i.e., sign_frame) is the cropped frame and is used to classification. This frame is never shown to the user. 
+The get_frame() method is a bit more interesting. It is very similar to the code used to test the YOLO object detector. The method gets the next frame of video, uses the YOLO model to detect objects, and converts the results to a pandas dataframe. Then, the code loops through the detected objects looking for the 'person' label. When the person is found, the coordinates of the bounding box are extracted. The frame is cropped using the bounding box and saved as sign_frame. Now, at this point there are 2 video frames. The first is the original frame, this one will be used to show the bounding box and the classification label to the user. The other frame (i.e., sign_frame) is the cropped frame and is used for classification. This frame is never shown to the user. 
 Ok, so there are 2 frames. Moving on. The sign_frame is then resized to 350 by 350. Meanwhile, the rectangle demonstrating the bounding box is drawn on the original frame. This method ends with both the original and the sign_frame being returned.
 
-Finally there is the process_clip() method. This method accepts a clip of 50 frames and performs the feature extraction. First the length of the clip is determined and saved as the nim_frames. Then the feature and mask variables are created. Note that the mask variable is created as ones and never changed. As I mentioned previously, the masks are not really needed anymore since the clips are all the same length. The frames are then passed to the feature extractor. Then the method returns the features and the masks, that's it. 
+Finally there is the process_clip() method. This method accepts a clip of 50 frames and performs the feature extraction. First the length of the clip is determined and saved as 'num_frames'. Then the feature and mask variables are created. Note that the mask variable is created as ones and never changed. As I mentioned previously, the masks are not really needed anymore since the clips are all the same length. The frames are then passed to the feature extractor. Then the method returns the features and the masks, that's it. 
 
 ### The build_feature_extractor function
 
@@ -517,7 +517,7 @@ def build_feature_extractor():
     outputs = feature_extractor(preprocessed)
     return keras.Model(inputs, outputs, name="feature_extractor")
 ```
-The size of the images and the number of features are set as constants. Then the Efficient Net is loaded. The input and output chapes are defined and the keras model is created. Like I said, nothing new here. 
+The size of the images and the number of features are set as constants. Then the Efficient Net is loaded. The input and output shapes are defined and the keras model is created. Like I said, nothing new here. 
 
 ### The main function
 
@@ -553,8 +553,8 @@ def main(camera):
 feature_extractor = build_feature_extractor()
 main(VideoCamera())
 ```
-Ok, the main function accepts the VideoCamera object. Then the prediction result is initially set to 'nothing'. Then the main loop starts. 
-The loop gets the next frame and gives it to the queue (q is the instance of the Circular Queue). Then, check the position of the dueue tail. If the tail is 49, then the queue is full (because the queue was created to hold 50 frames). When this condition is true, the clip contained in the queue is processed. First the video clip is extracted from the q using get_queue(). The clip is then processed to extract the features and masks. The masks and features are modified to add another dimension. This is to match the expected input for the model. The clip is then classified. The prediction is used as an index to get the appropriate label in the CLASS_LIST constant. This prediction is then printed to the frame and shown to the user. 
+Ok, the main function accepts the VideoCamera object. The prediction result is initially set to 'nothing'. Then the main loop starts. 
+The loop gets the next frame and gives it to the queue (q is the instance of the Circular Queue). Then, check the position of the queue tail. If the tail is 49, then the queue is full (because the queue was created to hold 50 frames). When this condition is true, the clip contained in the queue is processed. First the video clip is extracted from the q using get_queue(). The clip is then processed to extract the features and masks. The masks and features are modified to add another dimension. This is to match the expected input for the model. The clip is then classified. The prediction is used as an index to get the appropriate label in the CLASS_LIST constant. This prediction is then printed to the frame and shown to the user. 
 
 ## Running the code
 
@@ -565,7 +565,7 @@ https://user-images.githubusercontent.com/102377660/190913677-4aa13a54-15da-40bd
 
 Awesome! It worked. You may have noticed that the video freezes for a split second just before the guessed label in the top left corner is updated. This freezing corresponds to the code classifying the video clip. After the freeze, the code then runs until it has collected 50 new frames, which are then classified, and the label in the top left is updated. 
 
-In the video, when I wasn't looking down to check my notes, I signed 'Chair', 'Clothes', 'Cousin', 'Drink', and 'Go'. The model classified all of them correctly! The reason I signed those 5 words and not the other 5 is because the words shown in the clip are the only ones that the model could reliably classify. In fact the model was completely unable to classify some words. For instance, when I signed 'Candy' the model always guessed 'Cousin', and when I signed 'Who' the model always guessed 'Drink'. These mistakes were not all that surprising to me. I'll show you a few videos and hopefully you'll see why the model is struggling. 
+In the video (when I wasn't looking down to check my notes), I signed 'Chair', 'Clothes', 'Cousin', 'Drink', and 'Go'. The model classified all of them correctly! The reason I signed those 5 words and not the other 5 is because the words shown in the clip are the only ones that the model could reliably classify. In fact, the model was completely unable to classify some words. For instance, when I signed 'Candy' the model always guessed 'Cousin', and when I signed 'Who' the model always guessed 'Drink'. These mistakes were not all that surprising to me. I'll show you a few videos and hopefully you'll see why the model is struggling. 
 
 Here is the sign for 'Candy'.
 
@@ -609,7 +609,7 @@ https://user-images.githubusercontent.com/102377660/191853576-f5565160-dc01-4ae4
 
 These signs are even more similar than 'Candy' and 'Cousin'. Both signs have the hand coming in front of the mouth with the fingers slighlty curled. Seeing these signs side by side, it is understandable that the model had trouble distinguishing between the two. 
 
-Another thing I noticed was that 'drink' was sometimes mistakenly labeled as 'cousin'. This is also pretty understandable. Both signs have the hand in a 'C' shape and involve moving the hand near the face. After experimenting a little, I figured out that tilting my head back when signing 'drink' made the classification much more reliable. Phrased another way, accentuating a feature unique to the sign 'drink' helped the model identify the sign. 
+Another thing I noticed was that 'drink' was sometimes mistakenly labeled as 'cousin'. This is also pretty understandable. Both signs have the hand in a 'C' shape and involve moving the hand near the face. After experimenting a little, I figured out that tilting my head back when signing 'drink' made the classification much more reliable. Phrased another way, accentuating a feature unique to the sign 'drink' helped the model identify the sign (pretty unsurprising when you think about it). 
 
 ## Wrap up
 
@@ -617,6 +617,6 @@ The test was a success! Well, mostly. The model could reliably identify 50% of t
 
 The next steps were to expand the model vocabulary and try to improve classification accuracy. Expanding the model vocabulary would involve adding more videos with different labels. Additional training videos should help the model learn, but adding more classes also makes the classification more challenging. It will be interesting to see what happens. 
 
-There were also some smaller tweaks I could make to improve the model speed and accuracy. I could improve the speed by using fewer features or a lighter feature extraction model. Or by buying a better computer (this is an expensive option). There were also a few things I could do to improve the model performance. For instance, I could remove background obstacles to see if that helps, or I could record myself signing and add those videos to the training set. So I had a few options and things to play with. But more on that in the next post. Thanks for reading!
+There were also some smaller tweaks I could make to improve the model speed and accuracy. I could improve the speed by using fewer features or a lighter feature extraction model. Or by having a better computer (my preferred option). There were also a few things I could do to improve the model performance. For instance, I could remove background obstacles to see if that helps, or I could record myself signing and add those videos to the training set. So I had a few options and things to play with. But more on that in the next post. Thanks for reading!
 
 
