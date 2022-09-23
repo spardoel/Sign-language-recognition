@@ -144,11 +144,12 @@ As you can see, the video looks much better.
 
 ## Re-test the model
 
-After implementing the change the model was slightly better (maybe). Honestly it was hard to tell, since I wasn't using a well defined testing strategy. 
+After implementing the change the model was slightly better (maybe). Honestly it was hard to tell, since I wasn't using a well defined testing strategy. Here is a video of me signing 'Paint', 'Table' and 'Hat'. 
 
 
+https://user-images.githubusercontent.com/102377660/192010230-4816881b-ca84-4f9b-adf7-ba2f44f3100c.mov
 
-
+As you can see, the classification is definitely better. It correctly classified these three words, but the model still fails on most other words. 
 
 Well darn. So what now? I thought about throwing in the towel, I even gave the model a 2 day time-out as punishment. But then I came up with another idea. Well, to be more precise, I recalled an idea that the dataset authors mentioned in their paper. Pose detection. Up to this point I had been using a general purpose feature extraction model as a pre-processing step. These features were then fed into the classification model. Since I want to identify the movement of the arms and hands, wouldn't the positional coordinates of the elbows, hands, and fingers be the ultimate input features? With this in mind, I set my sights on a pose detection approach. 
 
