@@ -71,7 +71,7 @@ And now, here is what the model sees after each frame was cropped.
 https://user-images.githubusercontent.com/102377660/191867808-fe267dfa-9046-4c48-b891-9c3cdde49a6a.mov
 
 
-A bit different don't you think? When I move my hand out beside me the YOLO object detection model expands the bounding box to keep my arm in the frame. When the image is resized, the result is that the frame is squished horizontally. This makes perfect sense when you think about it. Frankly it was a bit embarassing that I didn't realize the problem sooner. I won't be making that mistake again. 
+A bit different don't you think? When I move my hand out beside me the YOLO object detection model expands the bounding box to keep my arm in the frame. When the image is resized, the result is that the frame is squished horizontally. Obviously this is not right and doesn't match the input videos the model was trained to recognize. This makes perfect sense when you think about it. Frankly it was a bit embarassing that I didn't realize the problem sooner. I won't be making that mistake again. 
 
 Anyway, the videos that I gave the model for training didn't have randomly compressed images which cause edges to jump positions between consecutive frames. This could be why the model was struggling. 
 
