@@ -64,3 +64,6 @@ https://user-images.githubusercontent.com/102377660/192034316-aaabfbe7-3f8e-4183
 Pretty cool! As you can see the model hand tracking isn't perfect, and it gets confused when the hands are on top of each other, or when the hand is not fully visible.
 I was impressed by the hand tracking but I wasn't 100% convinced that it would be enough for the word detection model.
 
+### Testing hand tracking on the dataset
+
+I wanted to see if the hand tracking model could be run on the videos in the dataset. I used the mediapipe example code as a starting place and modified some of my existing code. In a few minutes I was able to generate videos from the database with the hand tracking visualization. 
