@@ -288,4 +288,14 @@ def extract_holistic_coordinates(frames):
 
         return landmarks_list
 ```
-The above code is the updated feature extraction function. The function begins by creating the holistic model as 'holistic'. Then, the output variable is created and filled with zeros. The number of features will be explained a bit later. 
+The above code is the updated feature extraction function. The function begins by creating the holistic model as 'holistic'. Then, the output variable is created and filled with zeros. As mentioned previously, there are 172 features per frame. Once the output variable has been created, the code loops through each frame in the video. Each frame is prepared and passed to the holistic model. The rest of the code in this function is to unpack the holistic model results and to copy the coordinate values to the output variable. 
+
+The left hand points are extracted from the holistic model results. First a temporary list is created. Then, the code loops through the left hand landmarks and coppies the X,Y and Z values to the temporary variable. Once this is complete, the temporary variable is coppied to the output variable. The same is repeated for the right hand. The main difference being that the temporary variable is coppied to a specific slice of the output variable. This slice of the output variable is reserved for right hand features. If the right hand is not in frame, then this section of the output variable is padded with zeros. 
+
+After the points for both hands have been coppied to the output variable, the code then checks the pose estimator points. The code loops through the first 23 points (which are all the points above the waist). For each of these points, the visibility value is checked. If the visibility is more than 50%, the point is saved. If the visibility is less than 50%, a zero is added in place of the X and Y coordinates. 
+
+This code was run, and the pickle file holding the features was saved. 
+
+### Sign classification model training with holistic features
+
+
