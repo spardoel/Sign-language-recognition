@@ -153,19 +153,15 @@ To evaluate the  classification model that used hand tracking as the feature inp
 To test the model I signed all 10 words: "before", "book", "candy", "chair", "clothes", "computer", "cousin", "drink", "go" and "who".
 
 
-
-
 https://user-images.githubusercontent.com/102377660/192147556-31e9adc3-3c0c-49a1-b0ef-bafb4e39dba5.mov
 
-As before, the video freezing indicates that the clip is being processed. For now, I wasn't worried about it. 
-As you can see the model was ok, but not great. It misclassified 'Before', 'Chair', and 'Go', which means it correctly guessed 7 / 10. Considering the previous feature extraction appraoch classified about half of the words consistently, this is an improvement. But I wasn't satisfied. I knew the hand tracking was imperfect and that the input features had issues. To improve things, I wanted to add more points. Namely, I wanted to also track the arms and the location of the face. For that, I used mediapipe's holistic model. 
+As before, the video freezing indicates that the clip is being processed. For now, I wasn't worried about that. In terms of classification performance, as you can see, the model was ok, but not great. It misclassified 'Before', 'Chair', and 'Go', which means it correctly guessed 7 / 10. Considering the previous feature extraction approach classified about half of the words consistently, this is an improvement. But I wasn't satisfied. I knew the hand tracking was imperfect and that the input features had issues. To improve things, I wanted to add more points. Namely, I wanted to also track the arms and the location of the face. For that, I used mediapipe's holistic model. 
 
 
 ## Holistic body position estimation 
 
 
-
-Mediapipe offer many different models. Originally, I wanted to use the hand tracking model. This model identified the hand and fingers of one or more hands. However, sign language uses more than just the hands. 
+Mediapipe offer many different models. Originally, I used the hand tracking model. This model identified the hand and fingers of one or more hands. However, sign language uses more than just the hands. 
 For example, here are the signs for 'Man' and 'Woman'.
 Man
 
@@ -179,14 +175,117 @@ Woman
 https://user-images.githubusercontent.com/102377660/192033933-16ef8790-3e7c-4a9b-9cbe-f9c917187635.mov
 
 
-Notice how similar the hand movements are. The main difference is the position of the hand relative to the face. The word 'Man' touches the thumb to the forehead then the chest. Whereas the word 'Woman' touches the thumb to the chin, then chest. Other words have similar issues. Only looking at the hands may not provide enough information to differentiate between words.
+Notice how similar the hand movements are. The main difference is the position of the hand relative to the face. The word 'Man' touches the thumb to the forehead then the chest. Whereas the word 'Woman' touches the thumb to the chin, then chest. Other words have similar issues. Therefore, only looking at the hands may not provide enough information to differentiate between words.
 
 So, the position of the hands relative to the face or other parts of the body may be important.  Since the frames are cropped to isolate the person within the frame, we could assume that the person is usually centered with the top of their head near the top of the frame. 
-Therefore, using the cropped frame as a reference, the position of hands relative to the person can be inferred to some extent. The problem with this is that it leaves additional information on the table. For example, in sign language, the movement of the head and facial expression can be used to convey additional meaning which could be helpful for the model. 
+Therefore, using the cropped frame as a reference, the position of the hands relative to the person can be inferred to some extent. The problem with this, is that it leaves additional information on the table. For example, in sign language, the movement of the head and facial expression can be used to convey additional meaning which could be helpful for the model. 
 
 The best example of this is the signs for 'Yes' and 'No'. When signing these words, many of the people in the dataset also either smiled and nodded, or frowned and shook their head to reinforce the meaning of the word they were signing. 
 So, it may be useful to include facial or emotion detection as additional inputs to the model as well. 
 
-As I mentioned mediapipe had many models to choose from. Did I want to use the hand tracking model? Or did I want to use the Holistic model which is the combination of hand, pose, and facial estimation models?
-Well, I wasn't sure. Yes, the face could have useful information, but not necessarily. Also, if I trained the model with the facial expression as an input, whould the model be able to function if the face is covered?
-I didn't want to introduce too many variables at once, so I decided to start small and only use the hand tracking model. I could always expand the model and add other inputs later on. 
+However, I didn't want to place too much emphasis on the facial emotion. For one this would introduce many more features and necessarily increase model complexity which can be tricky to optimize and can slow down the model. But more importantly, I wanted to be sure that the primary source of input data was the hands. I didn't want to inadvertently focus too much on the facial expression. 
+
+It was time to take a closer look at the holistic model. 
+
+### Holistic model
+
+The holistic model is a combination of the hand tracking, pose estimation, and facial recognition models. Here is a link to the website (https://google.github.io/mediapipe/solutions/holistic.html).
+As before, I used the provided code to run a small test on myself. This was the result. 
+
+https://user-images.githubusercontent.com/102377660/192159673-f73ead48-7acd-43ca-b122-081798b3c62e.mov
+
+Other than the weird creepy face, the model worked pretty well. When it was applied to the vidoes in the training set here was the result. 
+
+Here is an example of the word 'Candy'.
+
+https://user-images.githubusercontent.com/102377660/192159991-3d386778-78e8-427c-b4fe-0eb877f8fc65.mov
+
+The word 'Go'
+
+https://user-images.githubusercontent.com/102377660/192159997-82cdda1c-59ac-4085-b4c4-b77236c2070b.mov
+
+And, the word 'Chair'
+
+https://user-images.githubusercontent.com/102377660/192160009-d511e610-4d60-4786-b540-30be1e0605b7.mov
+
+As you can see the model did a pretty good job tracking the people in the dataset vidoes. There were some clips that were more difficult though. Take a look at this example of 'Computer' 
+
+
+https://user-images.githubusercontent.com/102377660/192160091-33998748-72d3-4862-b450-b0721c538216.mov
+
+
+You can see that the hand tracking cuts in and out while the person is signing. This happened when running the hand tracking model alone also. But now, with the holistic model, the position of the arms are still being tracked even when the hands cut out. My hope was that this would help the model identify these videos in cases where the hand points were unreliable. 
+
+### Preparing the holistic model as a feature extractor
+
+The holistic model had a lot more points to track than the hands model alone. That meant there needed to be some extra code to handle the additional inputs. 
+
+Let's take a minute to talk about these additional inputs. Each of the hands has 21 points. Each point has and X,Y, and Z coordinate. So there are 63 features for each hand. The holistic model also has pose estimation and facial detection. For now, onlt the pose estimation points will be used. Here is a diagram showing the points generated by the pose estimation model (taken from the mediapipe documentation).
+
+![mediapipe_pose_estimation_map](https://user-images.githubusercontent.com/102377660/192160633-24a8fb11-51ea-43a5-a8d2-95d48a5348cc.png)
+
+The image shows each of the index of each of the points. Importantly, only the first 22 points are above the waist. Fow this application, tracking the legs is not necessary. So only the first 23 points are used from the pose estimator model (indexes 0-22). Each of these points has an X, and Y coordinate (no Z coordinate). This means there are 46 values from the pose estimator. so, 63 + 63 + 46 = 172 features. 
+
+The other important thing to note is that each of the pose estimation points also has a 'visibility' parameter. This determines whether or not a pose estimation landmark is in frame. If the visibility value is very low, the point is likely not in the frame and the X and Y coordinates should not be used. This visibility value will be used in the feature estraction function, shown below. 
+
+As with the previous model, the preprocess_and_save code was updated to utilize the new feature extractor. The following code was taken from 'preprocess_and_save_holistic_points.py'.
+
+```
+def extract_holistic_coordinates(frames):
+    with mp_holistic.Holistic(
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5,
+        model_complexity=1,
+    ) as holistic:
+
+        # there are 40 points on each hand and 3 coordinates (x,y,z) for each point
+        landmarks_list = np.zeros(shape=(len(frames), NUM_FEATURES), dtype="float32")
+
+        for fr_num, image in enumerate(frames):
+            image.flags.writeable = False
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            results = holistic.process(image)
+            
+            # check each category of landmarks and assign to correct location in landmark list
+            # add the landmarks to the correct place in the landmark list.
+            # left hand landmarks indexes 0 - 62,
+            # right hand landmarks indexes 63 - 125,
+            # pose landmarks indexes 126 - 169
+
+            # check the left hand points
+            left_hand_temp = []
+            if results.left_hand_landmarks:
+                for mark in results.left_hand_landmarks.landmark:
+                    left_hand_temp.append(mark.x)
+                    left_hand_temp.append(mark.y)
+                    left_hand_temp.append(mark.z)
+
+                landmarks_list[fr_num, : len(left_hand_temp)] = left_hand_temp
+
+            # Check the right hand points
+            right_hand_temp = []
+            if results.right_hand_landmarks:
+                for mark in results.right_hand_landmarks.landmark:
+                    right_hand_temp.append(mark.x)
+                    right_hand_temp.append(mark.y)
+                    right_hand_temp.append(mark.z)
+
+                landmarks_list[fr_num, 63 : 63 + len(right_hand_temp)] = right_hand_temp
+
+            # check the pose points 0-22. Points 23-33 are for the waist and legs, they are not needed
+            pose_temp = []
+            if results.pose_landmarks:
+                for mark in results.pose_landmarks.landmark[:23]:
+                    if mark.visibility < 0.5:
+                        pose_temp.append(mark.x)
+                        pose_temp.append(mark.y)
+                    else:
+                        pose_temp.append(0)
+                        pose_temp.append(0)
+                        # pad with zeros if the point is not visible
+
+                landmarks_list[fr_num, 126 : 126 + len(pose_temp)] = pose_temp
+
+        return landmarks_list
+```
+The above code is the updated feature extraction function. The function begins by creating the holistic model as 'holistic'. Then, the output variable is created and filled with zeros. The number of features will be explained a bit later. 
