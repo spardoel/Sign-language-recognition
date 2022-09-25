@@ -17,7 +17,8 @@ This is useful when trying to find the most comfortable position on the bike or 
 
 ![image](https://user-images.githubusercontent.com/102377660/192028250-990c1288-fddc-424b-afb2-77dd4514ccd8.png)
 
-As you can see, their software takes a video of someone riding on an indoor trainer and uses pose estimation to track the movement of their body and limbs. 
+As you can see, their software takes a video of someone riding on an indoor trainer and uses pose estimation to track the movement of their body and limbs. The software then recommends adujstments of various bike components to optimize the fit. 
+
 That brief introduction out of the way, let's look at Mediapipe.
 
 ## Mediapipe
@@ -36,13 +37,14 @@ The page gives an overview of the function of the model and a bit of example cod
 https://user-images.githubusercontent.com/102377660/192034316-aaabfbe7-3f8e-4183-a863-746e90e1cfba.mov
 
 
-Pretty cool! As you can see, the model hand tracking is good but isn't perfect. Then the palm is vidible the tracking is excellent, but it gets confused when the hands are on top of each other, or when the hand is not fully visible. The next step was to break down the model outputs to access the coordinates of the hands. These positional coordinates would be the inputs for my classification model.
+Pretty cool! As you can see, the model hand tracking is good but isn't perfect. when the palm is visible, the tracking is excellent. But the model gets confused when the hands are on top of each other, or when the hand is not fully visible. 
+
 
 ### Testing hand tracking on the dataset
 
-I wanted to see if the hand tracking model could be run on the videos in the dataset. I used the mediapipe example code as a starting place and modified some of my existing code. In a few minutes I was able to generate videos from the database with the hand tracking visualization. 
+I wanted to see if the hand tracking model could be run on the videos in the dataset. I used the mediapipe example code as a starting point and modified some of my existing code. In just a few minutes, I was able to generate videos from the database with the hand tracking visualization. Take a look.
 
-Here are the words 'Go', 'Book' and 'Computer' after running the mediapipe hand tracking. 
+Here are the words 'Go', 'Book' and 'Computer' after running the mediapipe hand tracking on the augmented videos. 
 
 Here is the word 'Go' 
 
@@ -59,10 +61,14 @@ https://user-images.githubusercontent.com/102377660/192120882-105f7c58-211e-47c2
 
 Just like when I was running the model on myself, the hand tracking is good but not perfect. It also seemed that the salt and pepper noise may be affecting the tracking. Something to keep in mind for later. 
 
+To generate the above videos, the hand tracking was applied to each frame in the video and the points were drawn onto the frame. Then the frames were saved as a video. This is great, but not actually useful beyond visualization. The next step was to break down the model outputs to access the coordinates of the hands. These positional coordinates would be the inputs for my classification model
+
+## Hand coordinate feature extraction
+
 Even though the hand tracking wasn't perfect, I wanted to give it a try. So I modified the feature extraction code to generate the point coordinates as features. 
 You can find the following code in 'preprocess_and_save_hand_coordinate_features.py'
 
-Like the previous versions of the 'preprocess and save...' script, this version started by loading the video file paths and labels then splitting them into training, testing and validation sets. Then, for each set, each video was loaded, and the features were extracted. The resulting features and masks were saved. To use the hand coordinates as features, only one function needed to be changed. Here it is. 
+Like the previous versions of the 'preprocess and save...' scripts, this version started by loading the video file paths and labels, then splitting them into training, testing, and validation sets. Then, for each set, each video was loaded, and the features were extracted. The resulting features and masks were saved. To use the hand coordinates as features, only one function needed to be changed. Namely, the function that performed the feature extraction - extract_hand_coordinates(). Here it is. 
 
 ```
 import mediapipe as mp
@@ -122,10 +128,37 @@ def extract_hand_coordinates(frames):
 ```
 After importing the packages needed to run mediapipe, the number of variables is defined as a constant. According to the mediapipe documentation, there are 21 points being tracked per hand. For two hands, that is 42 points. For each point there is an X,Y and Z coordinate. This gives a total of 126 features. 
 
-The extract_hand_coordinates() function is where the magic happens. First, the hand detection model is created and called 'hands'. Then the 'landmarks_list' variable is created as an array of zeros. This is important because it is used as zero padding if some of the points are not available or if only one hand is visible. 
+The extract_hand_coordinates() function is where the magic happens. First, the hand detection model is created and called 'hands'. Then the 'landmarks_list' variable is created as an array of zeros. The variable is pre-allocated so that if some points are not available, the remaining points will be zero padded.  
 After the output variable is created, the code loops through each frame of the video. For each frame, the frame is prepared by converting the colour to RGB (this was part of the provided demo script, I don't know if it is strictly necessary). Then, the frame is passed to 'hands' for processing. The 'results' variable is a rather complex data structure. I had to do some trial and error to figure out how to access the coordinates. Here is what I came up with. 
 
-Note that if part of a hand is visible, the model will track the points that are visible and estimate the location of the missing points.
+Check 'results.multi_hand_landmark' to see if at least one hand was visible. If at least one hadn was visible, loop through each hand. For each hand, loop through the points for that hand. In the code, 'for mark in hand_landmarks.landmark:' loops through the points on a given hand. Then, for each point, append the X,Y and Z coordinates to a temporary list. Once all the available points have been coppied to the temporary list, copy the list to the pre-allocated output variable. Notice that the 'landmarks_list' is filled with the 'landmarks_list_temp' and may have trailing zero padding. It is important to note that if part of a hand is visible, the model will track the points that are visible and estimate the location of the missing points. This means that there are either 21 or 42 points. This is important since it maintains the order of points within the output variable.
+
+Once the features are extracted, they are saved as a pickle file, just like the previous versions. 
+
+### Training model with hand coordinate features
+
+To train the model, I simply needed to change the names of input an output files in the model training script. The rest of the script was practically identicay. I did end up tweaking the model parameters, so I created a separate script to train the hand coordinate model. The following model training used the code in "load_features_and_train_model_hand.py".
+
+After changing the name of the input file, and changing the numberof features to 126, I ran the model training. Initially, the training wasn't great. There were large differences between the training and validation sets. I decreased the model complexity and increased the dropout to 0.5, which helped. Using GRU layers instead of simple RNN layers also helped improve the model. After training for 140 epochs, the model reach a validation accuracy of 80%. Here is the graph of training. 
+
+![GRU_hands_10](https://user-images.githubusercontent.com/102377660/192146997-d8de9056-0e1f-4954-82be-beebc2610bdc.png)
+
+
+Despite tweaking some parameters the accuracy never really improved beyond 80%. Having generated the hand tracking output on the dataset videos, this was not surprising. The tracking wasn't great on the training videos and often lost track of a hand during the video. With that in mind, I didn't spend too much time trying to optimize the model, since the relatively low accuracy was probably caused by the features themselves and not the model parameters. Instead, I moved on to a real-life test using my webcam. 
+
+### Testing the model
+
+To evaluate the  classification model that used hand tracking as the feature inputs, I set it up to run with my webcam. Again, this was pretty straightforward. I just needed to update a bit of old code to replace the feature extraction step. I won't go into detail about the implementation, but if you are curious the code is available in 'run_sign_language_word_detector_10_hand_coordinates.py'. (I will go into detail when I talk about implementing the holistic feature extraction, so stay tuned for that).
+
+To test the model I signed all 10 words: "before", "book", "candy", "chair", "clothes", "computer", "cousin", "drink", "go" and "who".
+
+
+
+
+https://user-images.githubusercontent.com/102377660/192147556-31e9adc3-3c0c-49a1-b0ef-bafb4e39dba5.mov
+
+As before, the video freezing indicates that the clip is being processed. For now, I wasn't worried about it. 
+As you can see the model was ok, but not great. It misclassified 'Before', 'Chair', and 'Go', which means it correctly guessed 7 / 10. Considering the previous feature extraction appraoch classified about half of the words consistently, this is an improvement. But I wasn't satisfied. I knew the hand tracking was imperfect and that the input features had issues. To improve things, I wanted to add more points. Namely, I wanted to also track the arms and the location of the face. For that, I used mediapipe's holistic model. 
 
 
 ## Holistic body position estimation 
