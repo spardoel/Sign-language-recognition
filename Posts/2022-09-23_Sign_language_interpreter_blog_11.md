@@ -298,4 +298,31 @@ This code was run, and the pickle file holding the features was saved.
 
 ### Sign classification model training with holistic features
 
+The holistic features were used to train a model just like previously. The model started with two GRU layers then had a few dense layers with dropout in between each. Nothing new. Here is the plot of the training progress. 
+
+
+### Testing the holistic features model
+
+After training, I ran the model through my webcam and started signing all of the 10 words. To my surprise the model did extremely well! The model sometimes struggled to classify 'Who' or mistakenly classified 'Drink' as 'Cousin' but considering that the first model using the generic feature extractor could only classify about half of the words, this was a huge improvement. 
+
+Here is a video of me signing all 10 words. 
+
+
+https://user-images.githubusercontent.com/102377660/192384147-1fd7e960-fdd9-46dc-97a1-0e693d5b8fcb.mov
+
+Not too bad if I do say so myself. As you can see, the model correctly identified all 10 of the words. Now, as I mentioned, the model did make mistakes (especially with 'Drink' and 'Who'), but overall it was pretty good. 
+
+## Wrap up
+
+This post was a big one. I talked about using pose estimation instead of a generic feature extraction model. I used a hand tracking model from Mediapipe to generate the positional coordinates of the hands within the frame. Then, I used these coordinates as input features to the classification model. The hand features model was an improvement over the generic features but it still wasn't great. 
+
+Next, I added body position tracking to the feature list. Instead of just tracking the hands, the mediapipe's holistic model tracked the position of the head, shoulders, arms and hands. I then trained a classification model using the positional coordinates of all these points as input features. This model worked pretty well! It could correctly classified all 10 words (most of the time). 
+
+Although I was pleased with the results so far, there were two main problems with the model. 
+
+1. It only knew 10 words. This is a very small vocabulary. I wanted to train the model with more words. 
+2. The model was not truly real-time. After collecting a 2 s video clip, the model needed a few seconds to process the clip and make a prediction. I wanted to reduce this delay as much as possible, and I had a few ideas, more on that in a later post. 
+
+Thanks for reading!
+
 
