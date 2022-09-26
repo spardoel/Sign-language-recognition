@@ -300,6 +300,9 @@ This code was run, and the pickle file holding the features was saved.
 
 The holistic features were used to train a model just like previously. The model started with two GRU layers then had a few dense layers with dropout in between each. Nothing new. Here is the plot of the training progress. 
 
+![GRU_10_holistic](https://user-images.githubusercontent.com/102377660/192386966-4eb59341-ad0a-40e6-aa61-68e7f98a25f1.png)
+
+The model training was pretty good. Nothing remarkable. The validation accuracy reached about 90% with minimal difference between the training and validation values. Pretty good. Time to test it for real.
 
 ### Testing the holistic features model
 
