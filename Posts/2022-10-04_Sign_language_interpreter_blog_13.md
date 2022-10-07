@@ -87,7 +87,8 @@ Alright, since this program is being made to run on a live webcam feed, I needed
 
 Here is a rough outline of the VideoCamera() class. 
 
-![VideoCamera calss](https://user-images.githubusercontent.com/102377660/194620344-e348eb61-49c0-4fc1-a25b-9586006784e7.png)
+![VideoCamera calss](https://user-images.githubusercontent.com/102377660/194667487-28503f9c-35e4-4667-8c7a-9583e2371c95.png)
+
 
 The VideoCamera class has a CV2 object that controlls the webcam. It also has a function to get the next frame when needed. 
 
@@ -95,7 +96,8 @@ The VideoCamera class has a CV2 object that controlls the webcam. It also has a 
 
 Alright, deep breath. This is the class that holds all the real functionality of the program. Here is a draft of how I envisioned the class. 
 
-![FeatureExtractor calss](https://user-images.githubusercontent.com/102377660/194624287-aaf726ca-628c-490d-9ce2-9e4b2c57b5fe.png)
+
+![FeatureExtractor calss](https://user-images.githubusercontent.com/102377660/194667992-e63711c0-4eea-42db-bdcf-b7968a368791.png)
 
 
 Ok, so, this is the class. Let's start with the properties. The class has the holistic model as it's first property, no surprise there since this model is the actual feature extractor. 
