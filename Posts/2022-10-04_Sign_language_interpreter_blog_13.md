@@ -76,6 +76,10 @@ Take a look at the figure below. The top left pannel (A) shows a 640 pixel by 48
 
 Now take a look at this next image. Panel D is coppied from the previous image. Panel E shows the image after it has been cropped and the point coordinates adjusted to the coordinate system of the new frame. The coordinates of the point previously were (192,288). The x_min and y_min values are subtracted from the point coordinates to give the coordinates of the point in the new (cropped) image. The new coordinates of the point are (192 - 55, 288 - 40) which gives (137, 248). Also notice the width and height of the cropped image. These values were obtained by subtracting the coordinates of x_min,y_min from x_max,y_max, so 424 - 55 = 369, 465 - 40 = 425 which gives. Now that the coordinates of the point are known in the new coordinate system, normaliz by the image width and height to get the fractional coordinates (137/369, 248/425) which gives (0.37, 0.58). Now when the images are resized to be 350 by 350, the position of tthe point is still valid. 
 
+![cropping explanation figure 2](https://user-images.githubusercontent.com/102377660/194643027-ebfd61da-79d8-4bc0-a975-c73870391c02.png)
+
+
+
 ## The Video Camera class
 
 Alright, since this program is being made to run on a live webcam feed, I needed some functions to handle getting new frames from the webcam.
