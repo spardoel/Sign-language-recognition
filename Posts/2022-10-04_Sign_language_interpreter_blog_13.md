@@ -5,49 +5,65 @@ As a refresher, here is a video of the current sign language word identification
 https://user-images.githubusercontent.com/102377660/193940632-c7080bd4-08bb-46d8-9c6b-0f3fbec07b88.mov
 
 As you can see, the video freezes for a few seconds before the next guess is printed in the top left corner of the frame. I wanted to eliminate this delay. 
-This post will be about the process of refactoring the code and how I needed to generate a new dataset and train a whole new model. 
+This post will be about the process of refactoring the code and how I needed to generate a new dataset and train a whole new model in order to eliminate this delay. 
 
 ## What is taking so long? 
 
 I wanted to speed up the code. Well that's great, but first I needed to identify which parts of the code where slowing down the program. I imported the time module and checked various sections of the code. 
 
-In the first draft of this section I started by copying out the main function that runs the sign language interpreter program. I then used the time module to evaluate the methods and follow the rabbit trail until I identified the part of the code that was taking the longest. After some thought, I removed all that. 
+In the first draft of this section, I started by copying out the main function that runs the sign language interpreter program. I then used the time module to evaluate the methods and follow the rabbit trail until I identified the part of the code that was taking the longest. After some thought, I removed all that. 
 
-Here is what you need to know. For each frame, the YOLO model was used to identify the person in the frame. This was done as the frames were received. The YOLO model was fast enough to run as the frames were received. Therefore, the YOLO model was not the cause of the delay. Once 50 frames of video are ready, then the features are extracted. The features are then passed to the classification model. The classification model runs once per clip of 50 frames. This model could be simplified a bit, but compared to the YOLO and feature extraction models, the classification model was basically instantaneous. No, the YOLO and classification models were not the problem. The part of the code responsible for the several second delay before each new classifier decision was the feature extraction model.
+Here is what you need to know. For each frame, the YOLO model was used to identify the person in the frame. This was done as the frames were received. The YOLO model was fast enough to run as the frames were received. Therefore, the YOLO model was not the cause of the delay. As the program ran it collected frames. Once 50 frames of video were ready, then the features were extracted. The features were then passed to the classification model. The classification model ran once per clip of 50 frames. The classification model could be simplified a bit, but compared to the YOLO and feature extraction models, the classification model was basically instantaneous. No, the YOLO and classification models were not the problem. The part of the code responsible for the several second delay before each new classifier decision was the feature extraction model.
 
-Well darn, what to do about that? The feature extraction is pretty vital and is responsible for the good persormance of the model. The previous feature extractor I used was faster but had much worse performance. Again, what to do? 
+### Improving the speed of the feature extraction
 
-Running the feature extractor model once didn't take too long. After all, mediapipe created the models to be run in real time. The problem was that I was waiting until 50 frames were ready then running the feature extractor 50 times. That is what caused the delay. Well, could I run the feature extractor on each new frame as it is received? Well, not really, since I needed to wait for the entire clip to be ready before I could crop it, and it was these cropped frames that were given to the feature extractor. hmmm 
+The feature extraction step was by far the slowest. Well darn, what to do about that? The feature extraction is pretty vital. In fact, adding this feature extraction model improved perforamnce compared to the previous feature extraction model. I couldn't really just remove the feature extraction model... So, what to do? 
 
-Ok, so cropping the frames imposes some limitations. Well, is cropping actually necessary? Could the solution be as simple as not cropping? I tried removing the cropping and running the feature ectractor model on the un-cropped frames. The model performed much worse than the cropped videos. It seemed that the best performance was acheived when the video was cropped. This made sense to me because of how the features were represented. The mediapipe holistic model outputs the positional coordinates of the various body parts as percentages of the width and height of the frame. If the frames are all cropped to include only the person, then the magnitude of these percentages matters. For instance, if the frame is cropped to the top of the person's head, the fact that the hand is near the top of the frame is useful information because we know its position relative to the head. However, if the frames are not consistently cropped, then whether the hand is close to the top of the frame or not is meaningless. To a certain extent, these positional relationships can be inferred from the other body landmarks that are generated by the holistic model. But  the holistic model isn't perfect and thit often looses track of the hands and other body parts. So, while it may be possible to produce a good model without cropping the frame, it seemed that with my current model I would get the best results if the frames were cropped. So if the frames need to be cropped, then was I stuck? Well not necessarily. 
+Let's condsider the feature extraction model itself. Running the feature extractor model once didn't take long. After all, mediapipe created the holistic model (which I was using as a feature extractor) to be run in real time. The problem was that I was waiting until 50 frames were ready then running the feature extractor 50 times back to back. **That** is what caused the delay. Well, could I run the feature extractor on each new frame as it is received? Not really, because I needed to wait for the entire clip to be ready before I could crop it, and it was these cropped frames that were given to the feature extractor. hmmm 
+
+### To crop or not to crop?
+
+Ok, so cropping the frames imposed some limitations. Well, is cropping actually necessary? Could the solution be as simple as not cropping? I tried removing the cropping and running the feature ectractor model on the un-cropped frames. The model performed much worse than the cropped videos. It seemed that the best performance was acheived when the video was cropped. This made sense to me because of how the features were represented. The mediapipe holistic model outputs the positional coordinates of the various body parts as percentages of the width and height of the frame. If the frames are all cropped to include only the person, then the magnitude of these percentages matters. For instance, if the frame is cropped to the top of the person's head, the fact that the hand is near the top of the frame is useful information because we know its position relative to the head. However, if the frames are not consistently cropped, then whether the hand is close to the top of the frame or not is meaningless. To a certain extent, these positional relationships can be inferred from the other body landmarks that are generated by the holistic model. However, the holistic model isn't perfect and it often looses track of the hands and other body parts. The position sof the point relative to the frame on the other hand, is not subject to the same random dropout. So, while it may be possible to produce a good model without cropping the frame, it seemed that with my current model I would get the best results if the frames were cropped. So if the frames need to be cropped, then was I stuck? Did I need to simply accept the delay as an unavoidable fact? Well not necessarily. 
 
 The purpose of cropping the video was to ensure that all relevant points are visible and that the person is consistently in the center (ish) of the frame. 
-In this case, the relevant points are the coordinates of the body parts identified by the holistic model. 
+In this case, the relevant points are the coordinates of the body parts as identified by the holistic model. 
 With that in mind, what if I ran the holistic model then cropped the frame to be the smallest rectangle possible that contained all the points? 
-This would mean that the YOLO model to find the person in the frame wouldn't be necessary at all. Ok, that's good, but what about the image vs video cropping? 
+This would mean that running the YOLO model to find the person within the frame wouldn't be necessary at all. Ok, that's good, but what about the image vs video cropping? 
 
-In a previous post I talked about how cropping each individual frame resulted in weird compressions as each frame was resized a different amount. 
+### When to crop the frames?
+
+In a previous post, I talked about how cropping each individual frame resulted in weird compressions as each frame was resized a different amount. 
 For instance, if I moved my arm out to the side to perform a certain sign, the cropped and resized image would be much more compressed horizontally than the previous and following frames. 
-To solve this issue, I kept track of the bounding box of each frame but didn't immediately crop the video. 
-Instead, I waited until a clip of 50 frames was ready, then cropped the video using a single bounding box. 
+
+Here is the example from my previous post. 
+
+https://user-images.githubusercontent.com/102377660/194618727-e5112a7f-23bf-4d6a-91db-29eb94edec2a.mov
+
+
+To solve this issue, I kept track of the bounding box of each frame, but didn't immediately crop the frames. 
+Instead, I waited until a clip of 50 frames was ready, then cropped the video using a single bounding box that encompassed all other boxes. (One box to rule them all!) 
 This ensured that the frames were resized equally. 
 
 Now, back to the current code. If I ran the holistic model on each new (uncropped) frame of data, the coordinates of the body parts would be given as percentages of the current frame size. 
-Then, once the clip is ready and the video is cropped the percentage values would all be wrong. To address this new issue, I needed to re-scale the coordinates. 
+Then, once the clip is ready, and the video is cropped, the percentage values would all be wrong. To address this new issue, I needed to re-scale the coordinates. 
+
+## The new plan
 
 Ok, so I had a plan. 
 
-First, get rid of the YOLO model. It was no longer needed. 
-Then, for each frame,
-set up the holistic model to locate the body lankmarks,
-convert the landmark coordinates from % of frame dimensions to actual pixel coordinates and
-generate a bounding box that encompassed all body parts within the frame. 
+First, get rid of the YOLO model. It was no longer needed. Instead use the holisitc feature extractor for cropping.
+
+For each frame,
+1. Set up the holistic model to locate the body lankmarks
+2. Convert the landmark coordinates from % of frame dimensions to actual pixel coordinates
+3. Generate a bounding box that encompassed all body parts within the frame
 
 Next, once 50 frames were ready,
-find the minimums and maximums of the bounding box corners,
-generate the largest possible bounding box using the minimum and maximum values (a box that encompasses all bounding boxes from all of the frames),
-use the new bounding box to crop the video, 
-re-normalize the body landmark positions as % of the width and height of the new, cropped video, and pass these landmark positions to the classification model as the features. 
+1. Find the minimums and maximums of the bounding box corners
+2. Generate the largest possible bounding box using the minimum and maximum values (a box that encompasses all bounding boxes from all of the frames)
+3. Use the new bounding box to crop the video
+4. Re-normalize the body landmark positions as % of the width and height of the new, cropped video 
+5. Pass these landmark positions to the classification model as the features. 
 
 Wow, ok, this was turning into a whole big thing. Honestly, I was having a hard time keeping all this straight in my head. 
 Visualizing processes always helps me work through problems, so I started working on some class diagrams to help me think. 
