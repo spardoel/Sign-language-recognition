@@ -159,5 +159,108 @@ Finally, the bounding box property is reset to zero, and the features, masks, an
 
 ### Re-normalizing the coordinates. 
 
-In the previous section I mentioned that the 'map_coordinates_to_resized_image()' method is used to re-normalize the feature values. In this section, I want to take a closer look at this method. 
-As I mentioned previously, the coordinates of the points returned from the holistic model are represented as fractions of the image size. 
+In the previous section I mentioned that the 'map_coordinates_to_resized_image()' method is used to re-normalize the feature values. In this section, I want to take a closer look at this method.
+
+As I mentioned previously, the coordinates of the points returned from the holistic model are represented as fractions of the image size. When the individual frames are processed, the coordinates are converted to pixel values. The 'map_coordinates_to_resized_image()' method converts the points back to percentage values after the video frames have been cropped. 
+
+Here is the code.
+
+```
+ def __map_coordinates_to_resized_image(self, fr_idx, left_hand, right_hand, pose):
+
+        # Values are converted to numppy arrays for faster processing. 
+
+        # Left hand points 
+        LH_x = np.asarray(left_hand.x)
+        LH_y = np.asarray(left_hand.y)
+        LH_z = np.asarray(left_hand.z)
+
+        for loop_idx in range(len(LH_x)):
+            if LH_x[loop_idx] > 0:
+                LH_x[loop_idx] = (
+                    LH_x[loop_idx] - self.bounding_box.x_min[0]
+                ) / self.new_size_x
+                LH_z[loop_idx] = (
+                    LH_z[loop_idx] - self.bounding_box.x_min[0]
+                ) / self.new_size_x
+            if LH_y[loop_idx] > 0:
+                LH_y[loop_idx] = (
+                    LH_y[loop_idx] - self.bounding_box.y_min[0]
+                ) / self.new_size_y
+
+
+        # Right hand points
+        RH_x = np.asarray(right_hand.x)
+        RH_y = np.asarray(right_hand.y)
+        RH_z = np.asarray(right_hand.z)
+
+        for loop_idx in range(len(RH_x)):
+            if RH_x[loop_idx] > 0:
+                RH_x[loop_idx] = (
+                    RH_x[loop_idx] - self.bounding_box.x_min[0]
+                ) / self.new_size_x
+                RH_z[loop_idx] = (
+                    RH_z[loop_idx] - self.bounding_box.x_min[0]
+                ) / self.new_size_x
+            if RH_y[loop_idx] > 0:
+                RH_y[loop_idx] = (
+                    RH_y[loop_idx] - self.bounding_box.y_min[0]
+                ) / self.new_size_y
+
+        # Pose points
+        P_x = np.asarray(pose.x)
+        P_y = np.asarray(pose.y)
+
+        for loop_idx in range(len(P_x)):
+            if P_x[loop_idx] > 0:
+                P_x[loop_idx] = (
+                    P_x[loop_idx] - self.bounding_box.x_min[0]
+                ) / self.new_size_x
+            if P_y[loop_idx] > 0:
+                P_y[loop_idx] = (
+                    P_y[loop_idx] - self.bounding_box.y_min[0]
+                ) / self.new_size_y
+
+
+        # flatten the data in the order x,y,z. Store in new, 1-D arrays
+        LH_output = np.zeros(shape=(len(LH_x) * 3))
+        for loop_idx in range(len(LH_x)):
+            LH_output[3 * loop_idx] = LH_x[loop_idx]
+            LH_output[3 * loop_idx + 1] = LH_y[loop_idx]
+            LH_output[3 * loop_idx + 2] = LH_z[loop_idx]
+
+        RH_output = np.zeros(shape=(len(RH_x) * 3))
+        for loop_idx in range(len(RH_x)):
+            RH_output[3 * loop_idx] = RH_x[loop_idx]
+            RH_output[3 * loop_idx + 1] = RH_y[loop_idx]
+            RH_output[3 * loop_idx + 2] = RH_z[loop_idx]
+
+        P_output = np.zeros(shape=(len(P_x) * 2))
+        for loop_idx in range(len(P_x)):
+            P_output[2 * loop_idx] = P_x[loop_idx]
+            P_output[2 * loop_idx + 1] = P_y[loop_idx]
+
+
+        # Concatenate the flattened arrays into a single 1-D array
+        self.output_features[fr_idx] = np.concatenate(
+            (LH_output, RH_output, P_output), axis=0
+        )
+
+        # replace any nan values with zeros
+        self.output_features[fr_idx][np.isnan(self.output_features[fr_idx])] = 0
+```
+
+This method re-normalizes the points for the left hand, right hand, and for the body landmarks (called pose). The code for each of these variables is basically identical. 
+
+Let's start with the left hand points. The methods accepts the pandas dataframe containing the left hand points. The dataframe has 3 columns namely X,Y, and Z. Each point is a row and each point coordinate is held in a separate column. This makes it easy to access the coordinates of a specific point. The problem with using datframes like this is that it is slow. I found that converting the data to numpy arrays was much faster. This is why the code starts by converting the dataframe columns to separate numpy arrays. 
+
+Next, the code loops through each each point. If the value of the coordinate is larger than 0, then subtract the min value that was used to define the cropping bounding box. Then, divide by the new size of the cropped image. This process is explained in greater detail in the previous post. You may notice that the Z coordinate is being normalized using the X values. This is intentional. The holistic model documentation states that the Z coordinate is the estimated distance from the camera and is equivalent to the units of the X direction. Since the images do not have a third (Z) dimension, and because the units are the same as the X direction, I normalized the Z coordinate with the X values. (This was also done when preparing the training dataset, so the model is already acustomed to this input). 
+
+After the coordinates of each point were normalized to the new image dimensions, the values needed to be flattened. Previously, the code used flattened pandas dataframes to generate the output feature vector. This created the following pattern x1, y1, z1, x2, y2, z2, x3, y3, z3 ...
+To recreate this, I used a loop and specific index math. The loop checks each point. For each point, the X value is stored using index 3xi, the Y value is stored using index 3xi + 1, and the Z value is stored using index 3xi + 2. Once this was done for the left hand, right hand and pose points, the three 1 dimensional arrays were concatenated to form the output 1-D feature vector. 
+
+Finally, the output vector is checked for nan values. Any nan values are replaced by 0. 
+
+## Wrap up
+
+This post briefly went over the classes and methods used in the real-time sign language word classification program. In the next post I will talk about testing the model and a few finishing touches. Thanks for reading!
