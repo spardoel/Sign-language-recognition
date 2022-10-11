@@ -53,9 +53,9 @@ There are many methods within the FeatureExtractor class. I will talk through th
 
 The __init__ method sets the hand and pose point properties to zeros. This method also defines a few important values such as the maximum number of frames per clip (50 frames).
 
-run_feature_extractor_single_frame() is the next method on the list. This method is called for each new frame of data. The method accepts the frame (image) from the VideoCamera() class and runs the holistic model on the frame. Then, the extract_coordinates_from_results() method is called to unpack the results and save them in the left_hand, right_hand, and pose properties. Note that this method also multiplies the percentage values by the image dimensions such that the coordinates of the points are now in pixels (see the diagrams in the previous post for details about the coordinate normalization process). Then, get_single_frame_bounding_box() is called to identify the bounding box that encompasses all of the points held in the left_hand, right_hand, and pose properties. The last step in the run_feature_extractor_single_frame() method is to save these values in the 
-Data() class. The Data() class adds the values to the end of the queues. I'll talk about that class later. 
-To sumarize, run_feature_extractor_single_frame() runs the image through the holistic model, estracts the coordinates of the points of interest, identifies the bounding box, then saves the values for the current frame. 
+run_feature_extractor_single_frame() is the next method on the list. This method is called for each new frame of data. The method accepts the frame (image) from the VideoCamera() class and runs the holistic model on the frame. Then, the extract_coordinates_from_results() method is called to unpack the results and save them in the left_hand, right_hand, and pose properties. Note that this method also multiplies the percentage values by the image dimensions such that the coordinates of the points are now in pixels (see the diagrams in the previous post for details about the coordinate normalization process). Then, get_single_frame_bounding_box() is called to identify the bounding box that encompasses all of the points held in the left_hand, right_hand, and pose properties. The last step in the run_feature_extractor_single_frame() method is to save these values in the Data() class. The Data() class adds the values to the end of the queues. 
+
+To sumarize, run_feature_extractor_single_frame() runs the image through the holistic model, estracts the coordinates of the points of interest, identifies the bounding box, then saves the values for the current frame in the Data() class queues. 
 
 For reference here is the code 
 ```
@@ -68,26 +68,27 @@ For reference here is the code
 
         # get the shape of the input image
         self.input_image_size_y, self.input_image_size_x, _ = image.shape
-
+ 
+        # run the feature extractor model on the image
         image.flags.writeable = False
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         results = self.holistic.process(image)
-
+        
+        # unpack the results
         self.__extract_coordinates_from_results(results)
-
         self.__get_single_frame_bounding_box()
-
+        
+        # add the frame data to the queues in the Data() class
         data_structure.add_new_frame(
             image, self.bounding_box, self.left_hand, self.right_hand, self.pose
         )
 ```
 
-Next, I want to talk about the 'process_clip()' method. This is where things start to get complicated. This method is called when 50 frames have been processed and it is time for the classification model to guess the sign in the video. 
+Next, I want to talk about the 'process_clip()' method. This is where things start to get complicated. This method is called when clip frames have been processed and it is time for the classification model to guess the sign in the video. 
 
 Here is a simplified version of the code.
 
 ```
-
     def process_clip(self, data_structure):
 
         (
@@ -122,7 +123,7 @@ Here is a simplified version of the code.
             self.left_hand = pd.DataFrame(np.zeros((21, 3)), columns=["x", "y", "z"])
             self.right_hand = pd.DataFrame(np.zeros((21, 3)), columns=["x", "y", "z"])
             self.pose = pd.DataFrame(np.zeros((23, 2)), columns=["x", "y"])
-            # start_time = time()
+
             self.__map_coordinates_to_resized_image(
                 fr_idx,
                 LH_coordinates[fr_idx],
@@ -130,27 +131,7 @@ Here is a simplified version of the code.
                 P_coordinates[fr_idx],
             )
 
-            # print(f"Time elapsed {time() - start_time}")
-
-            left_index_x = 24
-            left_index_y = 25
-
-            # frame = self.__draw_point_on_frame(
-            #     frame,
-            #     self.output_features[fr_idx][left_index_x],
-            #     self.output_features[fr_idx][left_index_y],
-            # )
             ouput_clip.append(frame)
-
-        rand = round(10 * random())
-        if rand == 7:
-            name = (
-                "random_video_samples\ random_video_sample_"
-                + str(self.random_vid_counter)
-                + ".mp4"
-            )
-            # self.write_video_to_file(ouput_clip, filename=name)
-            self.random_vid_counter += 1
 
         frame_masks = np.ones(shape=(len(frames)), dtype="bool")
 
@@ -162,15 +143,21 @@ Here is a simplified version of the code.
         return self.output_features, frame_masks, ouput_clip
 ```
 
+The method starts by getting the video, lists of coordinates, and list of bounding boxes from the 'Data()' class. Then the 'get_bounding_box_min_max()' method is called. This method accepts the list of bounding boxes (one for each frame) and finds the largest bounding box. 
 
-The method starts by getting the video, lists of coordinates and list of bounding boxes from the 'Data()' class. Then the 'get_bounding_box_min_max()' method is called. This method accepts the list of bounding boxes (one for each frame) and finds the largest bounding box. Each bounding box is defined by 2 points. The upper left point, which is closest to the origin and has the (xmin,ymin) components, and the lower right point with the (xmax,ymax) components. The 'get_bounding_box_min_max()' method finds the minimum and maximum values of the X and Y components separately. Once the xmin,ymin,xmax,ymax values are found, the 'check_new_bounding_box_values()' method is called. This method checks that the values are not nan, and checks if they are larger than the values from the previous frame which are currently held in the bounding_box property. This check is a reminand of the old code and might be removed in the future. But for now, let's carry on. 
+Each bounding box is defined by 2 points. The upper left point, which is closest to the origin and has the (xmin,ymin) components, and the lower right point with the (xmax,ymax) components. The 'get_bounding_box_min_max()' method finds the minimum and maximum values of the X and Y components separately. Once the xmin,ymin,xmax,ymax values are found, the 'check_new_bounding_box_values()' method is called. This method checks that the values are not nan, and assignes the values to the bounding box class property. 
 
 Next, once the single bounding box for the clip has been found, the 'check_bound_box_validity()' method is called. This method checks that the bounding box is not larger than the dimensions of the input frame.
 
-Once the bounding box for the video has been found and checked, clice notation was used to crop the video clip. 
+Once the bounding box for the video has been found and checked, slice notation is used to crop the video clip. 
 
-Next, the code loops through each frame of the video, and re-sizes the holistic points to match the new, cropped video. Remember, that the coordinates are currently in pixels because the coordinates of the points were converted when the frame was originally processed. As I was saying, the code loops through each frame. The frame is resized to bbe 350 by 350. Then the 'map_coordinates_to_resized_image()' method is called. This method is where the normalization happens.  I think it is worth taking a closer look at. 
+Next, the code loops through each frame of the video, and re-sizes the holistic points to match the new, cropped video using 'map_coordinates_to_resized_image()'. Remember, that the coordinates are currently in pixels because the coordinates of the points were converted when the frame was originally processed. As I was saying, the code loops through each frame. The frame is resized to be 350 by 350 pixels. Then the 'map_coordinates_to_resized_image()' method is called. This method is where the normalization happens.  
+
+After the features are re-normalized to the cropped image size, the mask output variable is prepared. The mask variable is set to zeros, then the length of the video clip is used to set some of the values to ones. Previously, the masks were not used because it was assumed that every video clip would be exactly 50 frames long. The classification model is expecting a 50 frame input, so the masks were not needed. However, after some testing, I found that 2 seconds is a long time between different words. When using the real-time model I would often sign a word then have to wait for the program to finish collecting the rest of the 50 frames. This was not a problem in terms of functionality, but it made the program feel slugish. By using the mask variable here to identify the frames of video, I can change the number of input frames between classifications. I'll talk more about that a bit later. 
+
+Finally, the bounding box property is reset to zero, and the features, masks, and the resized video clip are returned. 
 
 ### Re-normalizing the coordinates. 
 
+In the previous section I mentioned that the 'map_coordinates_to_resized_image()' method is used to re-normalize the feature values. In this section, I want to take a closer look at this method. 
 As I mentioned previously, the coordinates of the points returned from the holistic model are represented as fractions of the image size. 
