@@ -1,5 +1,17 @@
 # Sign-language-recognition
 
+
+
+
+https://user-images.githubusercontent.com/102377660/195370504-88c770b1-07b9-48df-b0d5-594ffe99224c.mov
+
+
+
+
+https://user-images.githubusercontent.com/102377660/195370511-7603f1b5-cc8b-4cd1-aadd-f17949a7b803.mov
+
+
+
 American sign language is commonly used by the deaf community in North America. The language is entierly visual and involves making complex gestures with the hands. 
 
 My goal for this project was to create a sign language interpretation program that could recognize American sign language letters and words.
