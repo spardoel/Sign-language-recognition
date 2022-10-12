@@ -1,6 +1,6 @@
 # Sign-language-recognition
 
-
+Examples of the final program.
 
 
 https://user-images.githubusercontent.com/102377660/195370504-88c770b1-07b9-48df-b0d5-594ffe99224c.mov
@@ -11,6 +11,7 @@ https://user-images.githubusercontent.com/102377660/195370504-88c770b1-07b9-48df
 https://user-images.githubusercontent.com/102377660/195370511-7603f1b5-cc8b-4cd1-aadd-f17949a7b803.mov
 
 
+## Project description
 
 American sign language is commonly used by the deaf community in North America. The language is entierly visual and involves making complex gestures with the hands. 
 
@@ -19,7 +20,7 @@ I wanted to use various deep learning models and methods such as convolutional a
 
 The project is separated into multiple phases. 
 
-## Phase 1 - ASL alphabet recognition
+### Phase 1 - ASL alphabet recognition
 
 ![image](https://user-images.githubusercontent.com/102377660/188241142-5a4b53ac-6798-4414-ba48-04d25f66d2d6.png)
 
@@ -42,7 +43,7 @@ Here is a video of the final result of Phase 1.
 https://user-images.githubusercontent.com/102377660/190267410-8db5a828-2a98-4d23-995d-783c073a5c82.mp4
 
 
-## Phase 2 - Word level recognition
+### Phase 2 - Word level recognition
 
 In sign language, words are more complex than the alphabet. Here is a video of someone signing the word 'book'.
 
