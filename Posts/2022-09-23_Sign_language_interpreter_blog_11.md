@@ -7,7 +7,7 @@ This post will be about my exploration of Mediapipe and their hand tracking API.
 
 ## Pose estimation  
 
-Pose estimation is basically whata it sounds like. When given an image or video of a human, the computer estimates the position of key anatomical landmarks. You may have seen some images of people with colourful skeletons drawn on top. 
+Pose estimation is basically what it sounds like. When given an image or video of a human, the computer estimates the position of key anatomical landmarks. If you have ever seen images of people with colourful, computer generated skeletons drawn on them, chance are good that it was an example of a pose estimation model. 
 Here is an example taken from the Mediapipe page on pose estimation (https://google.github.io/mediapipe/solutions/pose.html).
 
 ![image](https://user-images.githubusercontent.com/102377660/192027676-64839a92-4e44-4cc1-99f5-85b31393cbe1.png)
@@ -24,14 +24,14 @@ That brief introduction out of the way, let's look at Mediapipe.
 ## Mediapipe
 
 Mediapipe is an open source computer vision framework made for pose estimation and object detection. It offers several different models including facial detection, hand tracking, and whole body tracking (called holistic). 
-My previous attempt at sign languge word identification was not great. To improve the model I planned to replace the generic feature extractor model with a mediapipe model that identified the coordinates of anatomical landmarks. 
+My previous attempt at sign languge word identification was not great. To improve the model, I planned to replace the generic feature extractor model with a mediapipe model that identified the coordinates of anatomical landmarks. 
 I was hoping that the positional coordinates of the fingers and hands would be better than the generic features when fed into my custom word classifier. 
 
 
 ## Hand tracking
 
 I had decided to use the mediapipe hand tracking model. Here is a link to the website https://google.github.io/mediapipe/solutions/hands.html.
-The page gives an overview of the function of the model and a bit of example code. This made it extremely easy to test for myself. After downloading the basic test script I recorded the following video. The code for this test is found in 'pose_estimator_hands.py'
+The page gives an overview of the function of the model and a bit of example code. This made it extremely easy to test for myself. After downloading the basic test script, I recorded the following video. The code for this test is found in 'pose_estimator_hands.py'
 
 
 https://user-images.githubusercontent.com/102377660/192034316-aaabfbe7-3f8e-4183-a863-746e90e1cfba.mov
@@ -59,9 +59,9 @@ Finally, 'Computer'
 https://user-images.githubusercontent.com/102377660/192120882-105f7c58-211e-47c2-afa0-9ec5c024cd6c.mov
 
 
-Just like when I was running the model on myself, the hand tracking is good but not perfect. It also seemed that the salt and pepper noise may be affecting the tracking. Something to keep in mind for later. 
+Just like when I was running the model on myself, the hand tracking is good but not perfect. It also seemed that the salt and pepper noise may be affecting the tracking. Something to keep in mind for later if I want to optimize the model performance. 
 
-To generate the above videos, the hand tracking was applied to each frame in the video and the points were drawn onto the frame. Then the frames were saved as a video. This is great, but not actually useful beyond visualization. The next step was to break down the model outputs to access the coordinates of the hands. These positional coordinates would be the inputs for my classification model
+To generate the above videos, the hand tracking was applied to each frame in the video and the points were drawn onto the frame. Then the frames were saved as a video. This is great, but not actually useful beyond visualization. The next step was to break down the model outputs to access the coordinates of the hand points. These positional coordinates would be the inputs for my classification model
 
 ## Hand coordinate feature extraction
 
@@ -71,8 +71,6 @@ You can find the following code in 'preprocess_and_save_hand_coordinate_features
 Like the previous versions of the 'preprocess and save...' scripts, this version started by loading the video file paths and labels, then splitting them into training, testing, and validation sets. Then, for each set, each video was loaded, and the features were extracted. The resulting features and masks were saved. To use the hand coordinates as features, only one function needed to be changed. Namely, the function that performed the feature extraction - extract_hand_coordinates(). Here it is. 
 
 ```
-import mediapipe as mp
-
 mp_face_mesh = mp.solutions.face_mesh
 
 import cv2
@@ -82,9 +80,7 @@ mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_hands = mp.solutions.hands
 
-
 NUM_FEATURES = 126
-
 
 def extract_hand_coordinates(frames):
 
