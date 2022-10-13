@@ -5,7 +5,7 @@ class CircularQueue:
         self.head = self.tail = -1
 
     # Insert an element into the circular queue
-    def enQueue(self, data):
+    def enqueue(self, data):
 
         # if this is the first entry
         if self.head == -1:
@@ -22,7 +22,7 @@ class CircularQueue:
                 self.head = (self.head + 1) % self.max_size
 
     # Get the contents of the entire queue
-    def getQueue(self):
+    def get_queue(self):
         # create the output variable
         data = []
 
@@ -42,7 +42,7 @@ class CircularQueue:
         return data
 
     # print the contents of the queue
-    def printQueue(self):
+    def print_queue(self):
         if self.head == -1:
             print("Queue is empty")
 
