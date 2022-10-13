@@ -30,6 +30,14 @@ For this first phase I had 2 main goals.
 2. Run the model in real time using a live video from my webcam.
 
 Blog posts 1 - 4 are related to Phase 1. 
+
+
+1. Introduction
+2. Building a basic CNN model
+3. Testing the model
+4. Improving the model
+
+
 The following code files contain the code for this phase:
 
 ```
@@ -56,15 +64,19 @@ Phase 2 of the project had basically the same goals but using videos instead of 
 2. Run the model in real time using video from my webcam. 
 
 
-Blog posts 5 - ?
-The following code files contain the code for this phase:
+Blog posts 5 - 15
 
-```
-"Code files/preprocess_and_save_video_features.py"
-"Code files/load_features_and_train_model.py"
-```
-
-
+5. Graduating from the alphabet to words
+6. Training a model for video identification
+7. Reorganizing and inspecting the dataset
+6. Training a model for video identification
+9. Setting up the real-time video classification
+10. Scaling up the model
+11. Switching to a pose estimation approach
+12. Increasing the holistic feature model vocabulary
+13. Refactoring to improve program speed
+14. Implementing the new holistic cropping approach
+15. Testing the final model
 
 
 https://user-images.githubusercontent.com/102377660/194672424-9799b4f0-4087-4aa8-9bde-ec5f5627e9f7.mov
