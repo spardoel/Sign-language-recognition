@@ -78,14 +78,13 @@ Blog posts 5 - 15
 14. Implementing the new holistic cropping approach
 15. Testing the final model
 
+Several variations and methods were used in Phase 2. A generic CNN based feature extractor was tested as well as the YOLOv5 model for object detection. In the end, both of these appraoches were abandoned in favour of the mediapipe Holistic model. The mediapipe model tracks body landmarks. Then, a custom cropping function trims each frame. Below is an example of the holistic model landmark tracking. The coordinates of these landmarks were used as features and passed to a custom classification model.  
 
 https://user-images.githubusercontent.com/102377660/194672424-9799b4f0-4087-4aa8-9bde-ec5f5627e9f7.mov
 
-
+The custom classification model used GRU layers followed by several dense layers. The classification model was trained to identify 100 different words. Below is an example of the program in action. In the below example, the program recorded 2 seconds of video then classified that 2 second clip. In later versions of the code (such as the examples at the top of the page) this 2 second interval was reduced to 1 second. 
 
 
 https://user-images.githubusercontent.com/102377660/194610812-763d6af1-a9f1-400b-8f4d-af2b6e1b04a2.mov
 
 
-
-This is a work in progress. Expect frequent additions and updates.
