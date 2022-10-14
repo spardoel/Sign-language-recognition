@@ -127,15 +127,15 @@ After importing the packages needed to run mediapipe, the number of variables is
 The extract_hand_coordinates() function is where the magic happens. First, the hand detection model is created and called 'hands'. Then the 'landmarks_list' variable is created as an array of zeros. The variable is pre-allocated so that if some points are not available, the remaining points will be zero padded.  
 After the output variable is created, the code loops through each frame of the video. For each frame, the frame is prepared by converting the colour to RGB (this was part of the provided demo script, I don't know if it is strictly necessary). Then, the frame is passed to 'hands' for processing. The 'results' variable is a rather complex data structure. I had to do some trial and error to figure out how to access the coordinates. Here is what I came up with. 
 
-Check 'results.multi_hand_landmark' to see if at least one hand was visible. If at least one hadn was visible, loop through each hand. For each hand, loop through the points for that hand. In the code, 'for mark in hand_landmarks.landmark:' loops through the points on a given hand. Then, for each point, append the X,Y and Z coordinates to a temporary list. Once all the available points have been coppied to the temporary list, copy the list to the pre-allocated output variable. Notice that the 'landmarks_list' is filled with the 'landmarks_list_temp' and may have trailing zero padding. It is important to note that if part of a hand is visible, the model will track the points that are visible and estimate the location of the missing points. This means that there are either 21 or 42 points. This is important since it maintains the order of points within the output variable.
+Check 'results.multi_hand_landmark' to see if at least one hand was visible. If at least one hand was visible, loop through each hand. For each hand, loop through the points for that hand. In the code, 'for mark in hand_landmarks.landmark:' loops through the points on a given hand. Then, for each point, append the X,Y and Z coordinates to a temporary list. Once all the available points have been coppied to the temporary list, copy the list to the pre-allocated output variable. Notice that the 'landmarks_list' is filled with the 'landmarks_list_temp' and may have trailing zero padding. It is important to note that if part of a hand is visible, the model will track the points that are visible and estimate the location of the missing points. This means that there are either 21 or 42 points. This is important since it maintains the order of points within the output variable.
 
 Once the features are extracted, they are saved as a pickle file, just like the previous versions. 
 
 ### Training model with hand coordinate features
 
-To train the model, I simply needed to change the names of input an output files in the model training script. The rest of the script was practically identicay. I did end up tweaking the model parameters, so I created a separate script to train the hand coordinate model. The following model training used the code in "load_features_and_train_model_hand.py".
+To train the model, I simply needed to change the names of input an output files in the model training script. The rest of the script was practically identical. I did end up tweaking the model parameters, so I created a separate script to train the hand coordinate model. The following model training used the code in "load_features_and_train_model_hand.py".
 
-After changing the name of the input file, and changing the numberof features to 126, I ran the model training. Initially, the training wasn't great. There were large differences between the training and validation sets. I decreased the model complexity and increased the dropout to 0.5, which helped. Using GRU layers instead of simple RNN layers also helped improve the model. After training for 140 epochs, the model reach a validation accuracy of 80%. Here is the graph of training. 
+After changing the name of the input file, and changing the number of features to 126, I ran the model training. Initially, the training wasn't great. There were large differences between the training and validation results. I decreased the model complexity and increased the dropout to 0.5, which helped. Using GRU layers instead of simple RNN layers also helped improve the model. After training for 140 epochs, the model reach a validation accuracy of 80%. Here is the graph of training. 
 
 ![GRU_hands_10](https://user-images.githubusercontent.com/102377660/192146997-d8de9056-0e1f-4954-82be-beebc2610bdc.png)
 
@@ -157,8 +157,9 @@ As before, the video freezing indicates that the clip is being processed. For no
 ## Holistic body position estimation 
 
 
-Mediapipe offer many different models. Originally, I used the hand tracking model. This model identified the hand and fingers of one or more hands. However, sign language uses more than just the hands. 
+Mediapipe offers many different models. Originally, I used the hand tracking model. This model identified the hand and fingers of one or more hands. However, sign language uses more than just the hands. 
 For example, here are the signs for 'Man' and 'Woman'.
+
 Man
 
 
@@ -174,12 +175,10 @@ https://user-images.githubusercontent.com/102377660/192033933-16ef8790-3e7c-4a9b
 Notice how similar the hand movements are. The main difference is the position of the hand relative to the face. The word 'Man' touches the thumb to the forehead then the chest. Whereas the word 'Woman' touches the thumb to the chin, then chest. Other words have similar issues. Therefore, only looking at the hands may not provide enough information to differentiate between words.
 
 So, the position of the hands relative to the face or other parts of the body may be important.  Since the frames are cropped to isolate the person within the frame, we could assume that the person is usually centered with the top of their head near the top of the frame. 
-Therefore, using the cropped frame as a reference, the position of the hands relative to the person can be inferred to some extent. The problem with this, is that it leaves additional information on the table. For example, in sign language, the movement of the head and facial expression can be used to convey additional meaning which could be helpful for the model. 
+Therefore, using the cropped frame as a reference, the position of the hands relative to the person can be inferred to some extent. The problem with this, is that it relies on consitent cropping and relies on the classification model to realize the importance of the relative positions. In a sense, tracking only the hands leaves additional information on the table.
 
-The best example of this is the signs for 'Yes' and 'No'. When signing these words, many of the people in the dataset also either smiled and nodded, or frowned and shook their head to reinforce the meaning of the word they were signing. 
-So, it may be useful to include facial or emotion detection as additional inputs to the model as well. 
-
-However, I didn't want to place too much emphasis on the facial emotion. For one this would introduce many more features and necessarily increase model complexity which can be tricky to optimize and can slow down the model. But more importantly, I wanted to be sure that the primary source of input data was the hands. I didn't want to inadvertently focus too much on the facial expression. 
+Also, in sign language, the movement of the head and facial expression can be used to convey additional meaning. The best example of this, is the words 'Yes' and 'No'. When signing these words, many of the people in the dataset also either smiled and nodded, or frowned and shook their head to reinforce the meaning of the word they were signing. With that in mind, it may be useful to include facial or emotion detection as additional inputs to the model.
+However, I didn't want to place too much emphasis on the facial emotion. For one, this would introduce many more features and necessarily increase model complexity which can be tricky to optimize and can slow down the model. But more importantly, I wanted to be sure that the primary source of input data was the hands and body movements. I didn't want to inadvertently focus too much on the facial expression. 
 
 It was time to take a closer look at the holistic model. 
 
@@ -190,7 +189,7 @@ As before, I used the provided code to run a small test on myself. This was the 
 
 https://user-images.githubusercontent.com/102377660/192159673-f73ead48-7acd-43ca-b122-081798b3c62e.mov
 
-Other than the weird creepy face, the model worked pretty well. When it was applied to the vidoes in the training set here was the result. 
+Other than the weird creepy face, the model worked pretty well. When it was applied to the videos in the training set, here was the result. 
 
 Here is an example of the word 'Candy'.
 
@@ -210,19 +209,19 @@ As you can see the model did a pretty good job tracking the people in the datase
 https://user-images.githubusercontent.com/102377660/192160091-33998748-72d3-4862-b450-b0721c538216.mov
 
 
-You can see that the hand tracking cuts in and out while the person is signing. This happened when running the hand tracking model alone also. But now, with the holistic model, the position of the arms are still being tracked even when the hands cut out. My hope was that this would help the model identify these videos in cases where the hand points were unreliable. 
+You can see that the hand tracking cuts in and out while the person is signing. This also happened when running the hand tracking model alone. But now, with the holistic model, the position of the arms are still being tracked even when the hands cut out. My hope was that the extra landmarks would help the model identify these videos in cases where the hand points were unreliable. 
 
 ### Preparing the holistic model as a feature extractor
 
 The holistic model had a lot more points to track than the hands model alone. That meant there needed to be some extra code to handle the additional inputs. 
 
-Let's take a minute to talk about these additional inputs. Each of the hands has 21 points. Each point has and X,Y, and Z coordinate. So there are 63 features for each hand. The holistic model also has pose estimation and facial detection. For now, onlt the pose estimation points will be used. Here is a diagram showing the points generated by the pose estimation model (taken from the mediapipe documentation).
+Let's take a minute to talk about these additional inputs. Each of the hands had 21 points. Each point had an X,Y, and Z coordinate. So there were 63 features for each hand. The holistic model also had pose estimation and facial detection. For now, only the pose estimation points were used. Here is a diagram showing the points generated by the pose estimation model (taken from the mediapipe documentation).
 
 ![mediapipe_pose_estimation_map](https://user-images.githubusercontent.com/102377660/192160633-24a8fb11-51ea-43a5-a8d2-95d48a5348cc.png)
 
-The image shows each of the index of each of the points. Importantly, only the first 22 points are above the waist. Fow this application, tracking the legs is not necessary. So only the first 23 points are used from the pose estimator model (indexes 0-22). Each of these points has an X, and Y coordinate (no Z coordinate). This means there are 46 values from the pose estimator. so, 63 + 63 + 46 = 172 features. 
+The image shows the index of each of the points. Importantly, only the first 23 points are above the waist. For this application, tracking the legs was not necessary. So only the first 23 points were used from the pose estimator model (indexes 0-22). Each of these points had an X, and Y coordinate (no Z coordinate). This meant there were 46 values from the pose estimator. So, with hands there were a total of, 63 + 63 + 46 = 172 features. 
 
-The other important thing to note is that each of the pose estimation points also has a 'visibility' parameter. This determines whether or not a pose estimation landmark is in frame. If the visibility value is very low, the point is likely not in the frame and the X and Y coordinates should not be used. This visibility value will be used in the feature estraction function, shown below. 
+The other important thing to note is that each of the pose estimation points also has a 'visibility' parameter. This determines whether or not a pose estimation landmark is in frame. If the visibility value is very low, the point is likely not in the frame and the X and Y coordinates should not be used. This visibility value will be explained in the feature extraction function, shown below. 
 
 As with the previous model, the preprocess_and_save code was updated to utilize the new feature extractor. The following code was taken from 'preprocess_and_save_holistic_points.py'.
 
@@ -234,7 +233,6 @@ def extract_holistic_coordinates(frames):
         model_complexity=1,
     ) as holistic:
 
-        # there are 40 points on each hand and 3 coordinates (x,y,z) for each point
         landmarks_list = np.zeros(shape=(len(frames), NUM_FEATURES), dtype="float32")
 
         for fr_num, image in enumerate(frames):
@@ -272,7 +270,7 @@ def extract_holistic_coordinates(frames):
             pose_temp = []
             if results.pose_landmarks:
                 for mark in results.pose_landmarks.landmark[:23]:
-                    if mark.visibility < 0.5:
+                    if mark.visibility > 0.5:
                         pose_temp.append(mark.x)
                         pose_temp.append(mark.y)
                     else:
@@ -284,9 +282,9 @@ def extract_holistic_coordinates(frames):
 
         return landmarks_list
 ```
-The above code is the updated feature extraction function. The function begins by creating the holistic model as 'holistic'. Then, the output variable is created and filled with zeros. As mentioned previously, there are 172 features per frame. Once the output variable has been created, the code loops through each frame in the video. Each frame is prepared and passed to the holistic model. The rest of the code in this function is to unpack the holistic model results and to copy the coordinate values to the output variable. 
+The above code is the updated feature extraction function. The function begins by creating the holistic model as 'holistic'. Then, the output variable is created and filled with zeros. As mentioned previously, there are 172 features per frame. Once the output variable has been created, the code loops through each frame in the video. Each frame is prepared and passed to the holistic model. The rest of the code in this function is used to unpack the holistic model results and to copy the coordinate values to the output variable. 
 
-The left hand points are extracted from the holistic model results. First a temporary list is created. Then, the code loops through the left hand landmarks and coppies the X,Y and Z values to the temporary variable. Once this is complete, the temporary variable is coppied to the output variable. The same is repeated for the right hand. The main difference being that the temporary variable is coppied to a specific slice of the output variable. This slice of the output variable is reserved for right hand features. If the right hand is not in frame, then this section of the output variable is padded with zeros. 
+The left hand points are extracted from the holistic model results. First a temporary list is created. Then, the code loops through the left hand landmarks and coppies the X,Y and Z values to the temporary variable. Once this is complete, the temporary variable is coppied to the output variable. The same is repeated for the right hand. The main difference being that the temporary variable is coppied to a specific slice of the output variable. This slice of the output variable is reserved for right hand features. If the right hand is not in frame, then this section of the output variable is simply zeros. 
 
 After the points for both hands have been coppied to the output variable, the code then checks the pose estimator points. The code loops through the first 23 points (which are all the points above the waist). For each of these points, the visibility value is checked. If the visibility is more than 50%, the point is saved. If the visibility is less than 50%, a zero is added in place of the X and Y coordinates. 
 
@@ -294,7 +292,7 @@ This code was run, and the pickle file holding the features was saved.
 
 ### Sign classification model training with holistic features
 
-The holistic features were used to train a model just like previously. The model started with two GRU layers then had a few dense layers with dropout in between each. Nothing new. Here is the plot of the training progress. 
+The holistic features were used to train a model just like the previous versions. The model started with two GRU layers then had a few dense layers with dropout in between each. Nothing new. Here is the plot of the training progress. 
 
 ![GRU_10_holistic](https://user-images.githubusercontent.com/102377660/192386966-4eb59341-ad0a-40e6-aa61-68e7f98a25f1.png)
 
@@ -302,7 +300,7 @@ The model training was pretty good. Nothing remarkable. The validation accuracy 
 
 ### Testing the holistic features model
 
-After training, I ran the model through my webcam and started signing all of the 10 words. To my surprise the model did extremely well! The model sometimes struggled to classify 'Who' or mistakenly classified 'Drink' as 'Cousin' but considering that the first model using the generic feature extractor could only classify about half of the words, this was a huge improvement. 
+After training, I ran the model through my webcam and started signing all of the 10 words. To my surprise, the model did extremely well! The model sometimes struggled to classify 'Who' or mistakenly classified 'Drink' as 'Cousin' but considering that the first model using the generic feature extractor could only classify about half of the words, this was a huge improvement. 
 
 Here is a video of me signing all 10 words. 
 
