@@ -1,10 +1,10 @@
 # Developing a sign language interpreter using machine learning Part 14 - Implementing the new holistic cropping approach
 
-In the previous post I talked about how I reworked my appraoch for the program. In the previous version, I used the YOLO model to identify the person in the frame, then running the holistic feature extractor model on the cropped frames. 
-In the new version I removed the YOLO model completely. The holistic feature extractor model is run on each frame as soon as it is available. Then, once a clip is ready for processing, the video is cropped and the features are resized to match the cropped frame. 
+In the previous post I talked about how I reworked my appraoch for the program. In the previous version, I used the YOLO model to identify the person in the frame, then ran the holistic feature extractor model on the cropped frames. 
+In the new version I removed the YOLO model completely. The holistic feature extractor model is run on each frame as soon as it is available. Then, once a clip of 50 frames is ready for processing, the video is cropped and the features are resized to match the cropped frame. 
 
-In this post I will go through the code and talk about how I implemented the new methods. Originally I used pandas dataframes for storing the values for each frame. After some testing I found that the dataframes were slowing things down. 
-In a few places in the code, converting the data to numpy arrays was faster. In the end I still used dataframes to pass variables between functions, but when processing speed was important, the data were coppied to numpy arrays immediately before processing. 
+In this post I will go through the code and talk about how I implemented the new methods. Originally I used pandas dataframes for storing the values for each frame. After some testing, I found that the dataframes were slowing things down. 
+In a few places in the code, converting the data to numpy arrays was faster. In the end, I still used dataframes to pass variables between functions, but when processing speed was important, the data were coppied to numpy arrays immediately before processing. 
 This was my compromise between speed and simplicity. I'll talk a bit more about that later. 
 
 ## Class overview
@@ -28,11 +28,11 @@ This class is pretty simple, it has a CV2 object that controls the webcam. It al
 
 My goal for the FeatureExtractor class was to streamline the processing of each frame, then dump the processed data into queues. The Data class was made to handle these queues.
 
-For the Data class, the properties are simply 5 circular queues. One for each of the left hand, right hand, and pose coordinates. As well as a queue for the bounding boxes adn the video frames themselves. 
+For the Data class, the properties are simply 5 circular queues. One for each of the left hand, right hand, and pose coordinates, as well as a queue for the bounding boxes and the video frames themselves. 
 
-The __init__ method created the queues with a specific size. The classification model was trained on 2 second clips of video, so the default queue size is 50 frames (at 25 frames per second). 
+The __init__ method created the queues with a specific size. The classification model was trained on 2 second clips of video, so the default queue size is 50 frames (at 25 frames per second). This was later changed to decrease classification delay. 
 
-The methods are pretyy simple also. add_new_frame() simply appends the data from the current frame to the end of the circular queue. get_queue_tail() returns the value of the tail of one of the queues. Since the queues are synchronized, they all have the same tail values. This method is used to know when the queue is full and when all values have been overwritten and an entierly new clip is stored in the queues. get_clip() returns the entire contents of all queues. This is called when it is time to process the clip. Finally, write_video_to_file(), saves a given video clip. 
+The methods are prety simple. add_new_frame() simply appends the data from the current frame to the end of the circular queue. get_queue_tail() returns the value of the tail of one of the queues. Since the queues are synchronized, they all have the same tail values. This method is used to determine when the queue is full and when all values have been overwritten and an entierly new clip is stored in the queues. get_clip() returns the entire contents of all queues. This is called when it is time to process the clip. Finally, write_video_to_file(), saves a given video clip. 
 
 
 ## The FeatureExtractor class
