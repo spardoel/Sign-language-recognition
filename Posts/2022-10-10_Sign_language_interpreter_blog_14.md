@@ -84,7 +84,7 @@ For reference here is the code
         )
 ```
 
-Next, I want to talk about the 'process_clip()' method. This is where things start to get complicated. This method is called when clip frames have been processed and it is time for the classification model to guess the sign in the video. 
+Next, I want to talk about the process_clip() method. This is where things start to get complicated. This method is called when enough clip frames have been processed and it is time for the classification model to guess the sign in the video. 
 
 Here is a simplified version of the code.
 
@@ -143,23 +143,23 @@ Here is a simplified version of the code.
         return self.output_features, frame_masks, ouput_clip
 ```
 
-The method starts by getting the video, lists of coordinates, and list of bounding boxes from the 'Data()' class. Then the 'get_bounding_box_min_max()' method is called. This method accepts the list of bounding boxes (one for each frame) and finds the largest bounding box. 
+The method starts by getting the video, lists of coordinates, and list of bounding boxes from the Data() class. Then the get_bounding_box_min_max() method is called. This method accepts the list of bounding boxes (one for each frame) and finds the largest bounding box. 
 
-Each bounding box is defined by 2 points. The upper left point, which is closest to the origin and has the (xmin,ymin) components, and the lower right point with the (xmax,ymax) components. The 'get_bounding_box_min_max()' method finds the minimum and maximum values of the X and Y components separately. Once the xmin,ymin,xmax,ymax values are found, the 'check_new_bounding_box_values()' method is called. This method checks that the values are not nan, and assignes the values to the bounding box class property. 
+Each bounding box is defined by 2 points. The upper left point, which is closest to the origin and has the (xmin, ymin) components, and the lower right point with the (xmax,ymax) components. The get_bounding_box_min_max() method finds the minimum and maximum values of the X and Y components separately. Once the xmin, ymin, xmax, ymax values are found, the check_new_bounding_box_values() method is called. This method checks that the values are not nan, and assignes the values to the bounding box class property. 
 
-Next, once the single bounding box for the clip has been found, the 'check_bound_box_validity()' method is called. This method checks that the bounding box is not larger than the dimensions of the input frame.
+Next, once the single bounding box for the clip has been found, the check_bound_box_validity() method is called. This method checks that the bounding box is not larger than the dimensions of the input frame.
 
 Once the bounding box for the video has been found and checked, slice notation is used to crop the video clip. 
 
-Next, the code loops through each frame of the video, and re-sizes the holistic points to match the new, cropped video using 'map_coordinates_to_resized_image()'. Remember, that the coordinates are currently in pixels because the coordinates of the points were converted when the frame was originally processed. As I was saying, the code loops through each frame. The frame is resized to be 350 by 350 pixels. Then the 'map_coordinates_to_resized_image()' method is called. This method is where the normalization happens.  
+Next, the code loops through each frame of the video, and re-sizes the holistic points to match the new, cropped video using map_coordinates_to_resized_image(). Remember, that the coordinates are currently in pixels because of the conversion when the frame was originally processed. As I was saying, the code loops through each frame. The frame is resized to be 350 by 350 pixels. Then the map_coordinates_to_resized_image() method is called. This method is where the normalization happens.  
 
-After the features are re-normalized to the cropped image size, the mask output variable is prepared. The mask variable is set to zeros, then the length of the video clip is used to set some of the values to ones. Previously, the masks were not used because it was assumed that every video clip would be exactly 50 frames long. The classification model is expecting a 50 frame input, so the masks were not needed. However, after some testing, I found that 2 seconds is a long time between different words. When using the real-time model I would often sign a word then have to wait for the program to finish collecting the rest of the 50 frames. This was not a problem in terms of functionality, but it made the program feel slugish. By using the mask variable here to identify the frames of video, I can change the number of input frames between classifications. I'll talk more about that a bit later. 
+After the features are re-normalized to the cropped image size, the mask output variable is prepared. The mask variable is set to zeros, then the length of the video clip is used to set some of the values to ones. Previously, the masks were not used because it was assumed that every video clip would be exactly 50 frames long. The classification model is expecting a 50 frame input, so the masks were not needed. However, after some testing, I found that 2 seconds is a long time between different words. When using the real-time model, I would often sign a word then have to wait for the program to finish collecting the rest of the 50 frames. This was not a problem in terms of functionality, but it made the program feel slugish. By using the mask variable here to identify the frames of video, I can change the number of input frames between classifications. I'll talk more about that a bit later. 
 
 Finally, the bounding box property is reset to zero, and the features, masks, and the resized video clip are returned. 
 
 ### Re-normalizing the coordinates. 
 
-In the previous section I mentioned that the 'map_coordinates_to_resized_image()' method is used to re-normalize the feature values. In this section, I want to take a closer look at this method.
+In the previous section I mentioned that the map_coordinates_to_resized_image() method is used to re-normalize the feature values. In this section, I want to take a closer look at this method.
 
 As I mentioned previously, the coordinates of the points returned from the holistic model are represented as fractions of the image size. When the individual frames are processed, the coordinates are converted to pixel values. The 'map_coordinates_to_resized_image()' method converts the points back to percentage values after the video frames have been cropped. 
 
