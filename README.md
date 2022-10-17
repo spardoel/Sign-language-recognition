@@ -1,4 +1,4 @@
-# Sign-language-recognition
+# Sign language recognition
 
 Hi! This repository is a blog about a sign language recognition project I did. The final program was able to identify 100 sign language words in real-time. Here are two videos demonstrating the final program. 
 
