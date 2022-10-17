@@ -96,7 +96,7 @@ The custom classification model used GRU layers followed by several dense layers
 https://user-images.githubusercontent.com/102377660/194610812-763d6af1-a9f1-400b-8f4d-af2b6e1b04a2.mov
 
 
-The final classification model reached a validation acuracy of 91.74%. When tested on myself performing all 100 sign language words, the model correctly identified 78 words on the first try and 94 of the words in 3 tries or fewer. Overall I am pleased with the model performance. 
+The final classification model reached a validation accuracy  of 91.74%. When tested on myself performing all 100 sign language words, the model correctly identified 78 words on the first try and 94 of the words in 3 tries or fewer. Overall I am pleased with the model performance. 
 
 
 ### What I learned
