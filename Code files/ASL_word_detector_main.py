@@ -135,7 +135,7 @@ class VideoCamera(object):
         self.video = cv2.VideoCapture(0)
 
     def __del__(self):
-        self.video.release()  # returns camera frames along with bounding boxes and predictions
+        self.video.release()
 
     def get_frame(self):
         _, fr = self.video.read()
