@@ -67,7 +67,7 @@ https://user-images.githubusercontent.com/102377660/195192384-0689535f-8309-444e
 
 In this one I signed, 'Woman cheat bowling, no pizza later'. 
 
-Overall I was pleased by the classification. However, the 2 second classification interval was too much. The code was set up to record 2 second of video then guess the word. As you can see in the videos, I was usually done signing early and had to wait for the remainder of the 2 seconds to be recorded and the model to classify the word. To speed things up I decreased the classification interval. Here is an example of what I mean. 
+Overall I was pleased by the classification. However, the 2 second classification interval was too much. The code was set up to record 2 second of video then guess the word. As you can see in the videos, I was usually done signing early and had to wait for the remainder of the 2 seconds to be recorded and the model to classify the word. This made the video look awkward and gave the impression that the classification model was running slowly. To speed things up, I decreased the classification interval. Here is an example of what I mean. 
 
 
 
@@ -76,19 +76,22 @@ https://user-images.githubusercontent.com/102377660/195193617-db1d1aa0-c4ad-479a
 
 In this video I signed, 'Man meet son give jacket before school'. As you can see, the interval between classifications is much shorter. I think this looks much more natural. The excessively long pauses between classifications was awkward. 
 
-To do this I simply neded to record the desired number of video frames, then pad the feature vector with zeros and set the masks variable to match the number of actual video frames. 
+To do this, I simply neded to record the desired number of video frames, then pad the feature vector with zeros and set the masks variable to match the number of actual video frames. 
+
+### What the computer sees
 
 For demonstration purposes, here is a test video with the cropping frame and points of interest visible. 
 
-
 https://user-images.githubusercontent.com/102377660/195195275-11f29131-4709-484d-a0e5-f2cc1243aaed.mov
+
+In this video I signed 'Secretary enjoy eat corn'. Not a great sentence, I know. But the point of this clip was to show the landmarks and the bounding box on each frame. The points shown in this video are the points used as the input features for the classification model.  
 
 
 ## Conclusion
 
 Wow, what a journey. At the beginning of this project the goal was simply to classify static images of the sign language alphabet. Now, the program can identify sign language words in real time! 
 
-Unfortunately, I wasn't able to beat the performance of the research team who published the dataset. But then again, I didn't really try that hard... The dataset would have needed a lot of manual editing and as a wise man once said 'ain't nobody got time for that'. But seriously, the 100 word vocabulary I used gives a good overview of my approach and it demonstrates the program well. Certainly the code would be improved and sped up more, and I may come back and tinker with it from time to time, but for now I am happy to leave it as is.
+In previous posts I talked about a research paper that inspired me to undetake this project. Unfortunately, I wasn't able to beat the performance of the research team who published the dataset. But then again, I didn't really try to do that... The dataset would have needed a lot of manual editing and as a wise man once said 'ain't nobody got time for that'. But seriously, the 100 word vocabulary I used gives a good overview of my approach and it demonstrates the program well. Certainly the code could be improved and sped up more, and I may come back and tinker with it from time to time, but for now I am happy to leave it as is.
 
 I have enjoyed this project and I hope you enjoyed reading it. 
 
