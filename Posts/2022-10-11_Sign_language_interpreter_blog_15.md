@@ -91,7 +91,7 @@ In this video I signed 'Secretary enjoy eat corn'. Not a great sentence, I know.
 
 Wow, what a journey. At the beginning of this project the goal was simply to classify static images of the sign language alphabet. Now, the program can identify sign language words in real time! 
 
-In previous posts I talked about a research paper that inspired me to undetake this project. Unfortunately, I wasn't able to beat the performance of the research team who published the dataset. But then again, I didn't really try to do that... The dataset would have needed a lot of manual editing and as a wise man once said 'ain't nobody got time for that'. But seriously, the 100 word vocabulary I used gives a good overview of my approach and it demonstrates the program well. Certainly the code could be improved and sped up more, and I may come back and tinker with it from time to time, but for now I am happy to leave it as is.
+In previous posts I talked about a research paper that inspired me to undetake this project. Unfortunately, I wasn't able to beat the performance of the research team who published the dataset. But then again, I didn't really try to do that... The dataset would have needed a lot of manual editing and as a wise person once said 'ain't nobody got time for that'. But seriously, the 100 word vocabulary I used gives a good overview of my approach and it demonstrates the program well. Certainly the code could be improved and sped up more, and I may come back and tinker with it from time to time, but for now I am happy to leave it as is.
 
 I have enjoyed this project and I hope you enjoyed reading it. 
 
