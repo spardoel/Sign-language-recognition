@@ -161,7 +161,7 @@ Finally, the bounding box property is reset to zero, and the features, masks, an
 
 In the previous section I mentioned that the map_coordinates_to_resized_image() method is used to re-normalize the feature values. In this section, I want to take a closer look at this method.
 
-As I mentioned previously, the coordinates of the points returned from the holistic model are represented as fractions of the image size. When the individual frames are processed, the coordinates are converted to pixel values. The 'map_coordinates_to_resized_image()' method converts the points back to percentage values after the video frames have been cropped. 
+As I mentioned previously, the coordinates of the points returned from the holistic model are represented as fractions of the image size. When the individual frames are processed, the coordinates are converted to pixel values. The map_coordinates_to_resized_image() method converts the points back to percentage values after the video frames have been cropped. 
 
 Here is the code.
 
@@ -252,12 +252,12 @@ Here is the code.
 
 This method re-normalizes the points for the left hand, right hand, and for the body landmarks (called pose). The code for each of these variables is basically identical. 
 
-Let's start with the left hand points. The methods accepts the pandas dataframe containing the left hand points. The dataframe has 3 columns namely X,Y, and Z. Each point is a row and each point coordinate is held in a separate column. This makes it easy to access the coordinates of a specific point. The problem with using datframes like this is that it is slow. I found that converting the data to numpy arrays was much faster. This is why the code starts by converting the dataframe columns to separate numpy arrays. 
+Let's start with the left hand points. The method accepts the pandas dataframe containing the left hand points. The dataframe has 3 columns namely X, Y, and Z. Each point is a row and each point coordinate is held in a separate column (i.e., X, Y, Z). This makes it easy to access the coordinates of a specific point. The problem with using datframes like this, is that it is slow. I found that converting the data to numpy arrays was much faster. This is why the code starts by converting the dataframe columns to separate numpy arrays. 
 
 Next, the code loops through each each point. If the value of the coordinate is larger than 0, then subtract the min value that was used to define the cropping bounding box. Then, divide by the new size of the cropped image. This process is explained in greater detail in the previous post. You may notice that the Z coordinate is being normalized using the X values. This is intentional. The holistic model documentation states that the Z coordinate is the estimated distance from the camera and is equivalent to the units of the X direction. Since the images do not have a third (Z) dimension, and because the units are the same as the X direction, I normalized the Z coordinate with the X values. (This was also done when preparing the training dataset, so the model is already acustomed to this input). 
 
 After the coordinates of each point were normalized to the new image dimensions, the values needed to be flattened. Previously, the code used flattened pandas dataframes to generate the output feature vector. This created the following pattern x1, y1, z1, x2, y2, z2, x3, y3, z3 ...
-To recreate this, I used a loop and specific index math. The loop checks each point. For each point, the X value is stored using index 3xi, the Y value is stored using index 3xi + 1, and the Z value is stored using index 3xi + 2. Once this was done for the left hand, right hand and pose points, the three 1 dimensional arrays were concatenated to form the output 1-D feature vector. 
+To recreate this, I used a loop and specific index math. The loop checks each point. For each point, the X value is stored using index 3 times i, the Y value is stored using index 3 times i + 1, and the Z value is stored using index 3 times i + 2. Once this was done for the left hand, right hand and pose points, the three 1 dimensional arrays were concatenated to form the 1-D output feature vector. 
 
 Finally, the output vector is checked for nan values. Any nan values are replaced by 0. 
 
