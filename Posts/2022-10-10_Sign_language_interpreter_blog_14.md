@@ -1,10 +1,10 @@
 # Developing a sign language interpreter using machine learning Part 14 - Implementing the new holistic cropping approach
 
-In the previous post I talked about how I reworked my appraoch for the program. In the previous version, I used the YOLO model to identify the person in the frame, then running the holistic feature extractor model on the cropped frames. 
-In the new version I removed the YOLO model completely. The holistic feature extractor model is run on each frame as soon as it is available. Then, once a clip is ready for processing, the video is cropped and the features are resized to match the cropped frame. 
+In the previous post I talked about how I reworked my appraoch for the program. In the previous version, I used the YOLO model to identify the person in the frame, then ran the holistic feature extractor model on the cropped frames. 
+In the new version I removed the YOLO model completely. The holistic feature extractor model is run on each frame as soon as it is available. Then, once a clip of 50 frames is ready for processing, the video is cropped and the features are resized to match the cropped frame. 
 
-In this post I will go through the code and talk about how I implemented the new methods. Originally I used pandas dataframes for storing the values for each frame. After some testing I found that the dataframes were slowing things down. 
-In a few places in the code, converting the data to numpy arrays was faster. In the end I still used dataframes to pass variables between functions, but when processing speed was important, the data were coppied to numpy arrays immediately before processing. 
+In this post I will go through the code and talk about how I implemented the new methods. Originally I used pandas dataframes for storing the values for each frame. After some testing, I found that the dataframes were slowing things down. 
+In a few places in the code, converting the data to numpy arrays was faster. In the end, I still used dataframes to pass variables between functions, but when processing speed was important, the data were coppied to numpy arrays immediately before processing. 
 This was my compromise between speed and simplicity. I'll talk a bit more about that later. 
 
 ## Class overview
@@ -28,11 +28,11 @@ This class is pretty simple, it has a CV2 object that controls the webcam. It al
 
 My goal for the FeatureExtractor class was to streamline the processing of each frame, then dump the processed data into queues. The Data class was made to handle these queues.
 
-For the Data class, the properties are simply 5 circular queues. One for each of the left hand, right hand, and pose coordinates. As well as a queue for the bounding boxes adn the video frames themselves. 
+For the Data class, the properties are simply 5 circular queues. One for each of the left hand, right hand, and pose coordinates, as well as a queue for the bounding boxes and the video frames themselves. 
 
-The __init__ method created the queues with a specific size. The classification model was trained on 2 second clips of video, so the default queue size is 50 frames (at 25 frames per second). 
+The __init__ method created the queues with a specific size. The classification model was trained on 2 second clips of video, so the default queue size is 50 frames (at 25 frames per second). This was later changed to decrease classification delay. 
 
-The methods are pretyy simple also. add_new_frame() simply appends the data from the current frame to the end of the circular queue. get_queue_tail() returns the value of the tail of one of the queues. Since the queues are synchronized, they all have the same tail values. This method is used to know when the queue is full and when all values have been overwritten and an entierly new clip is stored in the queues. get_clip() returns the entire contents of all queues. This is called when it is time to process the clip. Finally, write_video_to_file(), saves a given video clip. 
+The methods are prety simple. add_new_frame() simply appends the data from the current frame to the end of the circular queue. get_queue_tail() returns the value of the tail of one of the queues. Since the queues are synchronized, they all have the same tail values. This method is used to determine when the queue is full and when all values have been overwritten and an entierly new clip is stored in the queues. get_clip() returns the entire contents of all queues. This is called when it is time to process the clip. Finally, write_video_to_file(), saves a given video clip. 
 
 
 ## The FeatureExtractor class
@@ -84,7 +84,7 @@ For reference here is the code
         )
 ```
 
-Next, I want to talk about the 'process_clip()' method. This is where things start to get complicated. This method is called when clip frames have been processed and it is time for the classification model to guess the sign in the video. 
+Next, I want to talk about the process_clip() method. This is where things start to get complicated. This method is called when enough clip frames have been processed and it is time for the classification model to guess the sign in the video. 
 
 Here is a simplified version of the code.
 
@@ -143,25 +143,25 @@ Here is a simplified version of the code.
         return self.output_features, frame_masks, ouput_clip
 ```
 
-The method starts by getting the video, lists of coordinates, and list of bounding boxes from the 'Data()' class. Then the 'get_bounding_box_min_max()' method is called. This method accepts the list of bounding boxes (one for each frame) and finds the largest bounding box. 
+The method starts by getting the video, lists of coordinates, and list of bounding boxes from the Data() class. Then the get_bounding_box_min_max() method is called. This method accepts the list of bounding boxes (one for each frame) and finds the largest bounding box. 
 
-Each bounding box is defined by 2 points. The upper left point, which is closest to the origin and has the (xmin,ymin) components, and the lower right point with the (xmax,ymax) components. The 'get_bounding_box_min_max()' method finds the minimum and maximum values of the X and Y components separately. Once the xmin,ymin,xmax,ymax values are found, the 'check_new_bounding_box_values()' method is called. This method checks that the values are not nan, and assignes the values to the bounding box class property. 
+Each bounding box is defined by 2 points. The upper left point, which is closest to the origin and has the (xmin, ymin) components, and the lower right point with the (xmax,ymax) components. The get_bounding_box_min_max() method finds the minimum and maximum values of the X and Y components separately. Once the xmin, ymin, xmax, ymax values are found, the check_new_bounding_box_values() method is called. This method checks that the values are not nan, and assignes the values to the bounding box class property. 
 
-Next, once the single bounding box for the clip has been found, the 'check_bound_box_validity()' method is called. This method checks that the bounding box is not larger than the dimensions of the input frame.
+Next, once the single bounding box for the clip has been found, the check_bound_box_validity() method is called. This method checks that the bounding box is not larger than the dimensions of the input frame.
 
 Once the bounding box for the video has been found and checked, slice notation is used to crop the video clip. 
 
-Next, the code loops through each frame of the video, and re-sizes the holistic points to match the new, cropped video using 'map_coordinates_to_resized_image()'. Remember, that the coordinates are currently in pixels because the coordinates of the points were converted when the frame was originally processed. As I was saying, the code loops through each frame. The frame is resized to be 350 by 350 pixels. Then the 'map_coordinates_to_resized_image()' method is called. This method is where the normalization happens.  
+Next, the code loops through each frame of the video, and re-sizes the holistic points to match the new, cropped video using map_coordinates_to_resized_image(). Remember, that the coordinates are currently in pixels because of the conversion when the frame was originally processed. As I was saying, the code loops through each frame. The frame is resized to be 350 by 350 pixels. Then the map_coordinates_to_resized_image() method is called. This method is where the normalization happens.  
 
-After the features are re-normalized to the cropped image size, the mask output variable is prepared. The mask variable is set to zeros, then the length of the video clip is used to set some of the values to ones. Previously, the masks were not used because it was assumed that every video clip would be exactly 50 frames long. The classification model is expecting a 50 frame input, so the masks were not needed. However, after some testing, I found that 2 seconds is a long time between different words. When using the real-time model I would often sign a word then have to wait for the program to finish collecting the rest of the 50 frames. This was not a problem in terms of functionality, but it made the program feel slugish. By using the mask variable here to identify the frames of video, I can change the number of input frames between classifications. I'll talk more about that a bit later. 
+After the features are re-normalized to the cropped image size, the mask output variable is prepared. The mask variable is set to zeros, then the length of the video clip is used to set some of the values to ones. Previously, the masks were not used because it was assumed that every video clip would be exactly 50 frames long. The classification model is expecting a 50 frame input, so the masks were not needed. However, after some testing, I found that 2 seconds is a long time between different words. When using the real-time model, I would often sign a word then have to wait for the program to finish collecting the rest of the 50 frames. This was not a problem in terms of functionality, but it made the program feel slugish. By using the mask variable here to identify the frames of video, I can change the number of input frames between classifications. I'll talk more about that a bit later. 
 
 Finally, the bounding box property is reset to zero, and the features, masks, and the resized video clip are returned. 
 
 ### Re-normalizing the coordinates. 
 
-In the previous section I mentioned that the 'map_coordinates_to_resized_image()' method is used to re-normalize the feature values. In this section, I want to take a closer look at this method.
+In the previous section I mentioned that the map_coordinates_to_resized_image() method is used to re-normalize the feature values. In this section, I want to take a closer look at this method.
 
-As I mentioned previously, the coordinates of the points returned from the holistic model are represented as fractions of the image size. When the individual frames are processed, the coordinates are converted to pixel values. The 'map_coordinates_to_resized_image()' method converts the points back to percentage values after the video frames have been cropped. 
+As I mentioned previously, the coordinates of the points returned from the holistic model are represented as fractions of the image size. When the individual frames are processed, the coordinates are converted to pixel values. The map_coordinates_to_resized_image() method converts the points back to percentage values after the video frames have been cropped. 
 
 Here is the code.
 
@@ -252,12 +252,12 @@ Here is the code.
 
 This method re-normalizes the points for the left hand, right hand, and for the body landmarks (called pose). The code for each of these variables is basically identical. 
 
-Let's start with the left hand points. The methods accepts the pandas dataframe containing the left hand points. The dataframe has 3 columns namely X,Y, and Z. Each point is a row and each point coordinate is held in a separate column. This makes it easy to access the coordinates of a specific point. The problem with using datframes like this is that it is slow. I found that converting the data to numpy arrays was much faster. This is why the code starts by converting the dataframe columns to separate numpy arrays. 
+Let's start with the left hand points. The method accepts the pandas dataframe containing the left hand points. The dataframe has 3 columns namely X, Y, and Z. Each point is a row and each point coordinate is held in a separate column (i.e., X, Y, Z). This makes it easy to access the coordinates of a specific point. The problem with using datframes like this, is that it is slow. I found that converting the data to numpy arrays was much faster. This is why the code starts by converting the dataframe columns to separate numpy arrays. 
 
 Next, the code loops through each each point. If the value of the coordinate is larger than 0, then subtract the min value that was used to define the cropping bounding box. Then, divide by the new size of the cropped image. This process is explained in greater detail in the previous post. You may notice that the Z coordinate is being normalized using the X values. This is intentional. The holistic model documentation states that the Z coordinate is the estimated distance from the camera and is equivalent to the units of the X direction. Since the images do not have a third (Z) dimension, and because the units are the same as the X direction, I normalized the Z coordinate with the X values. (This was also done when preparing the training dataset, so the model is already acustomed to this input). 
 
 After the coordinates of each point were normalized to the new image dimensions, the values needed to be flattened. Previously, the code used flattened pandas dataframes to generate the output feature vector. This created the following pattern x1, y1, z1, x2, y2, z2, x3, y3, z3 ...
-To recreate this, I used a loop and specific index math. The loop checks each point. For each point, the X value is stored using index 3xi, the Y value is stored using index 3xi + 1, and the Z value is stored using index 3xi + 2. Once this was done for the left hand, right hand and pose points, the three 1 dimensional arrays were concatenated to form the output 1-D feature vector. 
+To recreate this, I used a loop and specific index math. The loop checks each point. For each point, the X value is stored using index 3 times i, the Y value is stored using index 3 times i + 1, and the Z value is stored using index 3 times i + 2. Once this was done for the left hand, right hand and pose points, the three 1 dimensional arrays were concatenated to form the 1-D output feature vector. 
 
 Finally, the output vector is checked for nan values. Any nan values are replaced by 0. 
 
